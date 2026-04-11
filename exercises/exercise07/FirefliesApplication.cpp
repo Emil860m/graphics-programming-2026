@@ -9,7 +9,6 @@
 #include <ituGL/renderer/DeferredRenderPass.h>
 #include <glm/gtx/transform.hpp>
 #include <imgui.h>
-#include <iostream>
 
 FirefliesApplication::FirefliesApplication()
     : Application(1024, 1024, "Fireflies demo")
@@ -285,7 +284,6 @@ void FirefliesApplication::InitializeModels()
 
 void FirefliesApplication::InitializeCamera()
 {
-    std::cout << "Init cam";
     // Set view matrix, from the camera position looking to the origin
     m_camera.SetViewMatrix(glm::vec3(0, 8, 0), glm::vec3(0.0f), glm::vec3(0, 0, -1));
 
