@@ -9,10 +9,11 @@
 #include <ituGL/renderer/DeferredRenderPass.h>
 #include <glm/gtx/transform.hpp>
 #include <imgui.h>
+#include <iostream>
 
 FirefliesApplication::FirefliesApplication()
     : Application(1024, 1024, "Fireflies demo")
-    , m_renderMode(RenderMode::Deferred)
+    , m_renderMode(RenderMode::Forward)
     , m_renderer(GetDevice())
     , m_mouseClicked(false)
     , m_ambientColor(0.0f)
@@ -30,15 +31,26 @@ void FirefliesApplication::Initialize()
     m_imGui.Initialize(GetMainWindow());
 
     InitializeForwardMaterials();
+    std::cout << "1";
     InitializeDeferredMaterials();
+    std::cout << "2";
     InitializeModels();
+    std::cout << "3";
     InitializeCamera();
+    std::cout << "4";
     InitializeLights();
+    std::cout << "5";
     InitializeRenderer();
+    std::cout << "6";
 
     DeviceGL& device = GetDevice();
+    std::cout << "7";
     device.EnableFeature(GL_DEPTH_TEST);
+
+    std::cout << "8";
     device.SetVSyncEnabled(true);
+
+    std::cout << "9";
 }
 
 void FirefliesApplication::Update()
@@ -284,6 +296,7 @@ void FirefliesApplication::InitializeModels()
 
 void FirefliesApplication::InitializeCamera()
 {
+    std::cout << "Init cam";
     // Set view matrix, from the camera position looking to the origin
     m_camera.SetViewMatrix(glm::vec3(0, 8, 0), glm::vec3(0.0f), glm::vec3(0, 0, -1));
 
@@ -378,7 +391,7 @@ void FirefliesApplication::UpdateFireflies()
         firefly.pointLight.SetPosition(worldMatrix[3]);
 
         m_renderer.AddModel(m_fireflyModel, firefly.worldMatrix);
-        m_renderer.AddLight(&firefly.pointLight);
+        m_renderer.AddLight(firefly.pointLight);
     }
 }
 

@@ -16,3 +16,7 @@ FOREACH(subdir ${subdirectories})
 ENDFOREACH()
 
 add_library(itugl STATIC ${target_inc} ${target_src})
+target_link_libraries(itugl PUBLIC glfw)
+target_link_libraries(itugl PUBLIC glad)
+target_link_libraries(itugl PUBLIC assimp)
+target_link_libraries(itugl PUBLIC imgui)

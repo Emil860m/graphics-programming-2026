@@ -5,4 +5,9 @@ file(GLOB_RECURSE target_inc "*.h" )
 file(GLOB_RECURSE target_src "*.cpp" )
 
 add_executable(${TARGETNAME} ${target_inc} ${target_src})
-target_link_libraries(${TARGETNAME} ${libraries})
+target_link_libraries(${TARGETNAME}
+    ${libraries}
+    X11
+    pthread
+    dl
+)
