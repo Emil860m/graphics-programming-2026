@@ -31,26 +31,15 @@ void FirefliesApplication::Initialize()
     m_imGui.Initialize(GetMainWindow());
 
     InitializeForwardMaterials();
-    std::cout << "1";
     InitializeDeferredMaterials();
-    std::cout << "2";
     InitializeModels();
-    std::cout << "3";
     InitializeCamera();
-    std::cout << "4";
     InitializeLights();
-    std::cout << "5";
     InitializeRenderer();
-    std::cout << "6";
 
     DeviceGL& device = GetDevice();
-    std::cout << "7";
     device.EnableFeature(GL_DEPTH_TEST);
-
-    std::cout << "8";
     device.SetVSyncEnabled(true);
-
-    std::cout << "9";
 }
 
 void FirefliesApplication::Update()
