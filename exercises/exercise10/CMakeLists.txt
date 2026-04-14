@@ -6,6 +6,6 @@ file(GLOB_RECURSE target_src "*.cpp" )
 
 file(GLOB_RECURSE shaders "*.vert" "*.frag" "*.geom" "*.glsl")
 source_group("Shaders" FILES ${shaders})
-
+FILE(COPY shaders DESTINATION ${CMAKE_BINARY_DIR}/exercises/exercise10)
 add_executable(${TARGETNAME} ${target_inc} ${target_src} ${shaders})
 target_link_libraries(${TARGETNAME} ${libraries})
