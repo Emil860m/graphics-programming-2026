@@ -24,10 +24,13 @@ protected:
 
 private:
     void InitializeCamera();
-    void InitializeMaterial();
-    void InitializeRenderer();
-    void InitializeLights();
     void InitializeModels();
+    void InitializeMaterials();
+    void InitializeRenderer();
+    void InitializeMaterial();
+    void InitializeShaders();
+
+    std::shared_ptr<Mesh> CreateCubeMesh();
 
     void RenderGUI();
 private:
