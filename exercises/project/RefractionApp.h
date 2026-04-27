@@ -30,6 +30,9 @@ private:
     void InitializeMaterial();
     void InitializeShaders();
 
+    std::shared_ptr<Mesh> CreatePlaneMesh(int width, int depth, float spacing);
+
+
     std::shared_ptr<Mesh> CreateCubeMesh();
 
     void RenderGUI();
