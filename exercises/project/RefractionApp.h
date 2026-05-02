@@ -9,7 +9,7 @@
 
 class TextureCubemapObject;
 class Material;
-
+class Texture2DObject;
 
 class RefractionApp : public Application
 {
@@ -25,12 +25,16 @@ protected:
 private:
     void InitializeCamera();
     void InitializeModels();
-    void InitializeMaterials();
+    std::shared_ptr<Material> InitializeMaterial(std::vector<const char*> vertexShaderPaths, std::vector<const char*> fragmentShaderPaths);
     void InitializeRenderer();
-    void InitializeMaterial();
+    void InitializeMaterials();
     void InitializeShaders();
+    void InitializeFramebuffers();
+    
 
     std::shared_ptr<Mesh> CreatePlaneMesh(int width, int depth, float spacing);
+
+    std::shared_ptr<Mesh> CreatePlaneFromImage( const char* path, float heightScale, float spacing, bool use_height);
 
 
     std::shared_ptr<Mesh> CreateCubeMesh();
@@ -53,5 +57,11 @@ private:
     std::shared_ptr<TextureCubemapObject> m_skyboxTexture;
 
     // Default material
-    std::shared_ptr<Material> m_defaultMaterial;
+    std::shared_ptr<Material> m_groundMaterial;
+    std::shared_ptr<Material> m_waterMaterial;
+    std::shared_ptr<Model> m_groundTexture;
+
+    std::shared_ptr<TextureObject> m_waterNormal;
+    std::shared_ptr<Texture2DObject> m_sceneTexture;
+    glm::vec2 planeSize;
 };

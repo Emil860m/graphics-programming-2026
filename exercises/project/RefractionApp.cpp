@@ -1,5 +1,6 @@
 #include "RefractionApp.h"
-
+//#define STB_IMAGE_IMPLEMENTATION
+#include <stb_image.h>
 #include <ituGL/asset/TextureCubemapLoader.h>
 #include <ituGL/asset/ShaderLoader.h>
 #include <ituGL/asset/ModelLoader.h>
@@ -20,10 +21,14 @@
 #include <ituGL/renderer/ForwardRenderPass.h>
 #include <ituGL/scene/RendererSceneVisitor.h>
 #include <ituGL/renderer/DeferredRenderPass.h>
+#include <ituGL/renderer/PostFXRenderPass.h>
+#include <ituGL/renderer/GBufferRenderPass.h>
 
 #include <ituGL/scene/ImGuiSceneVisitor.h>
 #include <imgui.h>
 
+#include <iostream>
+using namespace std;
 RefractionApp::RefractionApp()
     : Application(1024, 1024, "Scene Viewer demo")
     , m_renderer(GetDevice())
@@ -39,9 +44,8 @@ void RefractionApp::Initialize()
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     glEnable(GL_DEPTH_TEST);
-    glDepthMask(GL_FALSE);
     InitializeCamera();
-    InitializeMaterial();
+    InitializeMaterials();
     InitializeModels();
     InitializeRenderer();
 }
@@ -85,7 +89,7 @@ void RefractionApp::InitializeCamera()
 {
     // Create the main camera
     std::shared_ptr<Camera> camera = std::make_shared<Camera>();
-    camera->SetViewMatrix(glm::vec3(-1, 1, 1), glm::vec3(0, 0, 0), glm::vec3(0, 1, 0));
+    camera->SetViewMatrix(glm::vec3(-1, 1, 1), glm::vec3(0, 1, 0), glm::vec3(0, 1, 0));
     camera->SetPerspectiveProjectionMatrix(1.0f, 1.0f, 0.1f, 100.0f);
 
     // Create a scene node for the camera
@@ -97,19 +101,40 @@ void RefractionApp::InitializeCamera()
     // Set the camera scene node to be controlled by the camera controller
     m_cameraController.SetCamera(sceneCamera);
 }
+void RefractionApp::InitializeMaterials() {
+    std::vector<const char*> waterVertexShaders;
+    waterVertexShaders.push_back("shaders/basic.vert");
+    std::vector<const char*> waterFragmentShaders;
+    waterFragmentShaders.push_back("shaders/basic.frag");
+    m_waterMaterial = InitializeMaterial(waterVertexShaders, waterFragmentShaders);
+    //m_waterMaterial->SetDepthWrite(false);
+    m_waterMaterial->SetBlendEquation(Material::BlendEquation::Add);
+    m_waterMaterial->SetBlendParams(
+        Material::BlendParam::SourceAlpha,
+        Material::BlendParam::OneMinusSourceAlpha
+    );
+    m_waterMaterial->SetDepthTestFunction(Material::TestFunction::LessEqual);
+    std::vector<const char*> groundVertexShaders;
+    std::vector<const char*> groundFragmentShaders;
+    groundVertexShaders.push_back("shaders/simple.vert");
+    groundFragmentShaders.push_back("shaders/simple.frag");
+    m_groundMaterial = InitializeMaterial(groundVertexShaders, groundFragmentShaders);
+    m_groundMaterial->SetBlendEquation(Material::BlendEquation::None);
+    m_groundMaterial->SetDepthWrite(true);
+}
 
-void RefractionApp::InitializeMaterial()
+std::shared_ptr<Material> RefractionApp::InitializeMaterial(std::vector<const char*> vertexShaderPaths, std::vector<const char*> fragmentShaderPaths)
 {
   // Load and build shader
-    std::vector<const char*> vertexShaderPaths;
-    vertexShaderPaths.push_back("shaders/version330.glsl");
-    vertexShaderPaths.push_back("shaders/simple.vert");
+    //std::vector<const char*> vertexShaderPaths;
+    vertexShaderPaths.insert(vertexShaderPaths.begin(), "shaders/version330.glsl");
+    //vertexShaderPaths.push_back("shaders/simple.vert");
 
     Shader vertexShader = ShaderLoader(Shader::VertexShader).Load(vertexShaderPaths);
 
-    std::vector<const char*> fragmentShaderPaths;
-    fragmentShaderPaths.push_back("shaders/version330.glsl");
-    fragmentShaderPaths.push_back("shaders/simple.frag");
+    //std::vector<const char*> fragmentShaderPaths;
+    fragmentShaderPaths.insert(fragmentShaderPaths.begin(), "shaders/version330.glsl");
+    //fragmentShaderPaths.push_back("shaders/basic.frag");
     Shader fragmentShader = ShaderLoader(Shader::FragmentShader).Load(fragmentShaderPaths);
 
     std::shared_ptr<ShaderProgram> shaderProgramPtr = std::make_shared<ShaderProgram>();
@@ -119,29 +144,41 @@ void RefractionApp::InitializeMaterial()
     ShaderProgram::Location cameraPositionLocation = shaderProgramPtr->GetUniformLocation("CameraPosition");
     ShaderProgram::Location worldMatrixLocation = shaderProgramPtr->GetUniformLocation("WorldMatrix");
     ShaderProgram::Location viewProjMatrixLocation = shaderProgramPtr->GetUniformLocation("ViewProjMatrix");
+    auto groundLoc = shaderProgramPtr->GetUniformLocation("groundPlane");
     //auto skyboxLoc = shaderProgramPtr->GetUniformLocation("Skybox");
     //auto timeLoc   = shaderProgramPtr->GetUniformLocation("Time");
-    //shaderProgramPtr->SetTexture(skyboxLoc, 0, *m_skyboxTexture);
-    // Register shader with renderer
-    m_renderer.RegisterShaderProgram(shaderProgramPtr,
-        [=](const ShaderProgram& shaderProgram, const glm::mat4& worldMatrix, const Camera& camera, bool cameraChanged)
-        {
-            if (cameraChanged)
+    /*m_waterNormal = Texture2DLoader::LoadTextureShared(
+        "noise_maps/iceland_heightmap.png",
+        TextureObject::FormatRGB,
+        TextureObject::InternalFormatRGB8
+        );*/
+        auto normalMapLoc = shaderProgramPtr->GetUniformLocation("NormalMap");
+        //auto planeSizeLoc = shaderProgramPtr->GetUniformLocation("PlaneSize");
+        // Register shader with renderer
+        m_renderer.RegisterShaderProgram(shaderProgramPtr,
+            [=](const ShaderProgram& shaderProgram, const glm::mat4& worldMatrix, const Camera& camera, bool cameraChanged)
             {
-                shaderProgram.SetUniform(cameraPositionLocation, camera.ExtractTranslation());
-                shaderProgram.SetUniform(viewProjMatrixLocation, camera.GetViewProjectionMatrix());
-                float time = (float)glfwGetTime(); // or your engine time
-
-                //shaderProgram.SetUniform(timeLoc, time);
-            }
+                if (cameraChanged)
+                {
+                    shaderProgram.SetUniform(cameraPositionLocation, camera.ExtractTranslation());
+                    shaderProgram.SetUniform(viewProjMatrixLocation, camera.GetViewProjectionMatrix());
+                    //float time = (float)glfwGetTime(); // or your engine time
+                    //shaderProgramPtr->SetTexture(normalMapLoc, 1, *m_waterNormal);
+                    
+                    //shaderProgram.SetUniform(timeLoc, time);
+                }
+            //shaderProgramPtr->SetTexture(skyboxLoc, 0, *m_skyboxTexture);
+            //shaderProgram.SetUniform(groundLoc, *m_groundTexture);
             shaderProgram.SetUniform(worldMatrixLocation, worldMatrix);
+            //shaderProgram.SetUniform(planeSizeLoc, planeSize);
         },
         m_renderer.GetDefaultUpdateLightsFunction(*shaderProgramPtr)
     );
-    
+
+
     // Create reference material
     assert(shaderProgramPtr);
-    m_defaultMaterial = std::make_shared<Material>(shaderProgramPtr);
+    return std::make_shared<Material>(shaderProgramPtr);
     
     
 }
@@ -150,65 +187,87 @@ void RefractionApp::InitializeMaterial()
 
 void RefractionApp::InitializeModels()
 {
-    m_skyboxTexture = TextureCubemapLoader::LoadTextureShared("models/defaultCubemap.png", TextureObject::FormatRGB, TextureObject::InternalFormatSRGB8);
 
+    // Skybox
+    m_skyboxTexture = TextureCubemapLoader::LoadTextureShared("models/defaultCubemap.png", TextureObject::FormatRGB, TextureObject::InternalFormatSRGB8);
     m_skyboxTexture->Bind();
     float maxLod;
     m_skyboxTexture->GetParameter(TextureObject::ParameterFloat::MaxLod, maxLod);
     TextureCubemapObject::Unbind();
-    //m_defaultMaterial->SetUniformValue("Alpha", 0.3f);
-    //m_defaultMaterial->SetUniformValue("cubeColor", glm::vec3(0.0f, 0.0f, 1.0f));
 
-    Mesh::SemanticMap semanticMap;
-    semanticMap[VertexAttribute::Semantic::Position] = 0; // matches shader location
+    // Ground
+    std::shared_ptr<Mesh> groundMesh = CreatePlaneFromImage("noise_maps/pngtree-black-gradient-translucent-png-image_4511241.jpeg", 1.0f, 0.01f, true);
+    std::shared_ptr<Model> groundModel = std::make_shared<Model>(groundMesh);
+    groundModel->AddMaterial(m_groundMaterial);
+    std::shared_ptr<SceneModel> groundNode = std::make_shared<SceneModel>("ground", groundModel);
+    //m_groundTexture = groundModel;
 
-    //std::shared_ptr<Texture2DObject> planeTexture = Texture2DLoader::LoadTextureShared("noise_maps/iceland_heightmap.png", TextureObject::FormatRGB, TextureObject::InternalFormatSRGBA8);
-    /*std::vector<Vertex> vertices;
-    float yScale = 64.0f / 256.0f, yShift = 16.0f;
-    int rez = 1;
-    int height = 1756;
-    int width = 2624;
-    //unsigned bytePerPixel = nrChannels;
-    for(int i = 0; i < height; i++)
-    {
-        for(int j = 0; j < width; j++)
-        {
-            unsigned char* pixelOffset = planeTexture + (j + width * i) * 8;
-            unsigned char y = pixelOffset[0];
-
-            // vertex
-            vertices.push_back( {{-height/2.0f + height*i/(float)height, (int) y * yScale - yShift, -width/2.0f + width*j/(float)width}, {0,0,0}});   // vx
-
-        }
-    }*/
+    std::shared_ptr<Mesh> waterMesh = CreatePlaneFromImage("noise_maps/iceland_heightmap.png", 1.0f, 0.01f, false);
+    std::shared_ptr<Model> waterModel = std::make_shared<Model>(waterMesh);
+    waterModel->AddMaterial(m_waterMaterial);
+    std::shared_ptr<SceneModel> waterNode = std::make_shared<SceneModel>("water", waterModel);
+    m_scene.AddSceneNode(waterNode);
+    m_scene.AddSceneNode(groundNode);
     
-    std::shared_ptr<Mesh> mesh = CreatePlaneMesh(100, 100, 5.1f);
-        // --- Create model ---
-    std::shared_ptr<Model> model = std::make_shared<Model>(mesh);
-
-
-    model->AddMaterial(m_defaultMaterial);
-
-    // --- Scene node ---
-    std::shared_ptr<SceneModel> cubeNode =
-        std::make_shared<SceneModel>("cube", model);
-        
-    m_scene.AddSceneNode(cubeNode);
-    
-
 
 }
+/*
+void RefractionApp::InitializeFramebuffers() {
+    int width, height;
+    GetMainWindow().GetDimensions(width, height);
 
+    // Scene Texture
+    m_sceneTexture = std::make_shared<Texture2DObject>();
+    m_sceneTexture->Bind();
+    m_sceneTexture->SetImage(0, width, height, TextureObject::FormatRGBA, TextureObject::InternalFormat::InternalFormatRGBA16F);
+    m_sceneTexture->SetParameter(TextureObject::ParameterEnum::MinFilter, GL_LINEAR);
+    m_sceneTexture->SetParameter(TextureObject::ParameterEnum::MagFilter, GL_LINEAR);
+    Texture2DObject::Unbind();
+
+}
+*/
 void RefractionApp::InitializeRenderer()
 {
+    unsigned int m_opaqueCollection = m_renderer.AddDrawcallCollection(
+        [](const Renderer::DrawcallInfo& dc)
+        {
+            return !dc.GetMaterial().HasBlend();
+        }
+    );
+    unsigned int m_transparentCollection = m_renderer.AddDrawcallCollection(
+        [](const Renderer::DrawcallInfo& dc)
+        {
+            return dc.GetMaterial().HasBlend();
+        }
+    );   
     m_renderer.AddRenderPass(std::make_unique<SkyboxRenderPass>(m_skyboxTexture));
-    m_renderer.AddRenderPass(std::make_unique<ForwardRenderPass>());
+         
+    int width, height;
+    GetMainWindow().GetDimensions(width, height);
+    std::unique_ptr<GBufferRenderPass> opaqueRenderPass(std::make_unique<GBufferRenderPass>(width, height, m_opaqueCollection));
+    m_renderer.AddRenderPass(std::move(opaqueRenderPass));
+    
+    //m_waterMaterial->SetUniformValue("groundPlane", opaqueRenderPass->GetAlbedoTexture());
+    //m_renderer.AddRenderPass(std::make_unique<ForwardRenderPass>(m_opaqueCollection));
+    cout << "added buffer pass\n";
+    m_renderer.AddRenderPass(std::make_unique<ForwardRenderPass>(m_transparentCollection));
+    
+    cout << "transparent pass\n";
     glDisable(GL_CULL_FACE);
 }
 
 void RefractionApp::RenderGUI()
 {
+    m_imGui.BeginFrame();
 
+    // Draw GUI for scene nodes, using the visitor pattern
+    ImGuiSceneVisitor imGuiVisitor(m_imGui, "Scene");
+    m_scene.AcceptVisitor(imGuiVisitor);
+    
+    // Draw GUI for camera controller
+    m_cameraController.DrawGUI(m_imGui);
+
+    m_imGui.EndFrame();
 }
 
 std::shared_ptr<Mesh> RefractionApp::CreatePlaneMesh(int width, int depth, float spacing)
@@ -231,7 +290,8 @@ std::shared_ptr<Mesh> RefractionApp::CreatePlaneMesh(int width, int depth, float
         {
             float xpos = x * spacing - (width * spacing * 0.5f);
             float zpos = z * spacing - (depth * spacing * 0.5f);
-            float y = sin(x);
+            //float y = sin(x);
+            float y = 0.0f;
             vertices.push_back({
                 glm::vec3(xpos, y, zpos),
                 glm::vec3(0.0f, 1.0f, 0.0f)
@@ -411,5 +471,147 @@ std::shared_ptr<Mesh> RefractionApp::CreateCubeMesh()  {
         layout.begin(),
         layout.end()
     );
+    return mesh;
+}
+
+float GetBrightness(unsigned char r, unsigned char g, unsigned char b)
+{
+    return (0.2126f * r + 0.7152f * g + 0.0722f * b) / 255.0f;
+}
+
+std::shared_ptr<Mesh> RefractionApp::CreatePlaneFromImage(
+    const char* path,
+    float heightScale,
+    float spacing,
+    bool use_height)
+{
+    int width, height, channels;
+    //stbi_set_flip_vertically_on_load(true);
+    unsigned char* data = stbi_load(path, &width, &height, &channels, 3);
+    if (!data)
+    {
+        throw std::runtime_error("Failed to load image");
+    }
+    planeSize = glm::vec2(width * spacing, height * spacing);
+    struct Vertex
+    {
+        glm::vec3 position;
+        glm::vec3 normal;
+        glm::vec2 uv;
+    };
+
+    std::vector<Vertex> vertices;
+    std::vector<unsigned int> indices;
+    std::vector<float> heights(width * height);
+
+    for (int z = 0; z < height; ++z)
+    {
+        for (int x = 0; x < width; ++x)
+        {
+            int idx = (z * width + x) * 3;
+
+            float brightness = GetBrightness(
+                data[idx],
+                data[idx + 1],
+                data[idx + 2]
+            );
+
+            heights[z * width + x] = brightness * heightScale;
+        }
+    }
+    
+
+        // Helper
+    auto getHeight = [&](int x, int z)
+    {
+        x = glm::clamp(x, 0, width - 1);
+        z = glm::clamp(z, 0, height - 1);
+        return heights[z * width + x];
+    };
+
+
+    // --- vertices ---
+    for (int z = 0; z < height; ++z)
+    {
+        for (int x = 0; x < width; ++x)
+        {
+            float hL = getHeight(x - 1, z);
+            float hR = getHeight(x + 1, z);
+            float hD = getHeight(x, z - 1);
+            float hU = getHeight(x, z + 1);
+
+            // slope
+            float dx = (hR - hL) / (2.0f * spacing);
+            float dz = (hU - hD) / (2.0f * spacing);
+            float u = (float)x / (width - 1);
+            float v = (float)z / (height - 1);
+            // build normal
+            glm::vec3 normal = glm::normalize(glm::vec3(-dx, 1.0f, -dz));
+            //glm::vec3 normal = glm::normalize(glm::vec3(1.0f, 0.0f, 0.0f));
+
+            float xpos = x * spacing - (width * spacing * 0.5f);
+            float zpos = z * spacing - (height * spacing * 0.5f);
+            float ypos = 0.5f;
+            if (use_height) {
+                ypos = heights[z * width + x];
+            }
+
+            vertices.push_back({
+                glm::vec3(xpos, ypos, zpos),
+                normal,
+                glm::vec2(u, v)
+            });
+        }
+    }
+    
+
+    // --- indices ---
+    for (int z = 0; z < height - 1; ++z)
+    {
+        for (int x = 0; x < width - 1; ++x)
+        {
+            unsigned int i0 = z * width + x;
+            unsigned int i1 = i0 + 1;
+            unsigned int i2 = i0 + width;
+            unsigned int i3 = i2 + 1;
+
+            indices.insert(indices.end(), {
+                i0, i2, i1,
+                i1, i2, i3
+            });
+        }
+    }
+
+    stbi_image_free(data);
+
+    // --- layout ---
+    std::vector<VertexAttribute::Layout> layout = {
+        VertexAttribute::Layout(
+            VertexAttribute(Data::Type::Float, 3, VertexAttribute::Semantic::Position),
+            offsetof(Vertex, position),
+            sizeof(Vertex)
+        ),
+        VertexAttribute::Layout(
+            VertexAttribute(Data::Type::Float, 3, VertexAttribute::Semantic::Normal),
+            offsetof(Vertex, normal),
+            sizeof(Vertex)
+        ),
+        VertexAttribute::Layout(
+            VertexAttribute(Data::Type::Float, 2, VertexAttribute::Semantic::TexCoord0),
+            offsetof(Vertex, uv),
+            sizeof(Vertex)
+        )
+    };
+
+    auto mesh = std::make_shared<Mesh>();
+
+    mesh->AddSubmesh<Vertex, unsigned int>(
+        Drawcall::Primitive::Triangles,
+        std::span(vertices.data(), vertices.size()),
+        std::span(indices.data(), indices.size()),
+        layout.begin(),
+        layout.end()
+    );
+
     return mesh;
 }
