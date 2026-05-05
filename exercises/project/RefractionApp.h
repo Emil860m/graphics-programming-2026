@@ -3,6 +3,7 @@
 #include <ituGL/application/Application.h>
 
 #include <ituGL/scene/Scene.h>
+#include <ituGL/texture/FramebufferObject.h>
 #include <ituGL/renderer/Renderer.h>
 #include <ituGL/camera/CameraController.h>
 #include <ituGL/utils/DearImGui.h>
@@ -25,11 +26,12 @@ protected:
 private:
     void InitializeCamera();
     void InitializeModels();
-    std::shared_ptr<Material> InitializeMaterial(std::vector<const char*> vertexShaderPaths, std::vector<const char*> fragmentShaderPaths);
+    std::shared_ptr<Material> InitializeMaterial(std::vector<const char*> vertexShaderPaths, std::vector<const char*> fragmentShaderPaths, bool time);
     void InitializeRenderer();
     void InitializeMaterials();
     void InitializeShaders();
     void InitializeFramebuffers();
+    std::shared_ptr<Material> CreatePostFXMaterial(const char* fragmentShaderPath, std::shared_ptr<Texture2DObject> sourceTexture);
     
 
     std::shared_ptr<Mesh> CreatePlaneMesh(int width, int depth, float spacing);
@@ -53,6 +55,8 @@ private:
     // Renderer
     Renderer m_renderer;
 
+    float delta_time;
+
     // Skybox texture
     std::shared_ptr<TextureCubemapObject> m_skyboxTexture;
 
@@ -64,4 +68,6 @@ private:
     std::shared_ptr<TextureObject> m_waterNormal;
     std::shared_ptr<Texture2DObject> m_sceneTexture;
     glm::vec2 planeSize;
+    std::shared_ptr<FramebufferObject> m_sceneFramebuffer;
+    std::shared_ptr<Texture2DObject> m_depthTexture;
 };

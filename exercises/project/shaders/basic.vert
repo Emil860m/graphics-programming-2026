@@ -5,6 +5,7 @@ layout(location = 2) in vec2 VertexUV;
 out vec3 WorldPos;
 out vec3 Normal;
 out vec2 UV;
+out vec2 TexCoord;
 
 uniform mat4 WorldMatrix;
 uniform mat4 ViewProjMatrix;
@@ -20,4 +21,5 @@ void main()
     UV = VertexUV;
 
     gl_Position = ViewProjMatrix * worldPos;
+    TexCoord = (gl_Position.xy / gl_Position.w) * 0.5f + 0.5f;
 }

@@ -9,6 +9,7 @@ source_group("Shaders" FILES ${shaders})
 FILE(COPY shaders DESTINATION ${CMAKE_BINARY_DIR}/exercises/project)
 FILE(COPY models DESTINATION ${CMAKE_BINARY_DIR}/exercises/project)
 FILE(COPY noise_maps DESTINATION ${CMAKE_BINARY_DIR}/exercises/project)
+FILE(COPY textures DESTINATION ${CMAKE_BINARY_DIR}/exercises/project)
 add_executable(${TARGETNAME} ${target_inc} ${target_src} ${shaders})
 target_link_libraries(${TARGETNAME}
     ${libraries}

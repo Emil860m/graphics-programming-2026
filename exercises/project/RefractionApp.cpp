@@ -2,6 +2,8 @@
 //#define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
 #include <ituGL/asset/TextureCubemapLoader.h>
+#include <ituGL/texture/Texture2DObject.h>
+#include <ituGL/asset/Texture2DLoader.h>
 #include <ituGL/asset/ShaderLoader.h>
 #include <ituGL/asset/ModelLoader.h>
 
@@ -48,11 +50,14 @@ void RefractionApp::Initialize()
     InitializeMaterials();
     InitializeModels();
     InitializeRenderer();
+    glfwSetTime(0.0);
 }
 
 void RefractionApp::Update()
 {
     Application::Update();
+    cout << GetDeltaTime() << "\n";
+    delta_time += GetDeltaTime();
 
     // Update camera controller
     m_cameraController.Update(GetMainWindow(), GetDeltaTime());
@@ -102,39 +107,46 @@ void RefractionApp::InitializeCamera()
     m_cameraController.SetCamera(sceneCamera);
 }
 void RefractionApp::InitializeMaterials() {
-    std::vector<const char*> waterVertexShaders;
-    waterVertexShaders.push_back("shaders/basic.vert");
-    std::vector<const char*> waterFragmentShaders;
-    waterFragmentShaders.push_back("shaders/basic.frag");
-    m_waterMaterial = InitializeMaterial(waterVertexShaders, waterFragmentShaders);
+    {
+        std::vector<const char*> waterVertexShaders;
+        waterVertexShaders.push_back("shaders/basic.vert");
+        std::vector<const char*> waterFragmentShaders;
+        waterFragmentShaders.push_back("shaders/utils.glsl");
+        waterFragmentShaders.push_back("shaders/basic.frag");
+        
+        m_waterMaterial = InitializeMaterial(waterVertexShaders, waterFragmentShaders, true);
+        m_waterMaterial->SetBlendEquation(Material::BlendEquation::Add);
+        m_waterMaterial->SetBlendParams(
+            Material::BlendParam::SourceAlpha,
+            Material::BlendParam::OneMinusSourceAlpha
+        );
+        m_waterMaterial->SetDepthTestFunction(Material::TestFunction::LessEqual);
+    }
+    {
+        std::vector<const char*> groundVertexShaders;
+        std::vector<const char*> groundFragmentShaders;
+        groundVertexShaders.push_back("shaders/simple.vert");
+        groundFragmentShaders.push_back("shaders/simple.frag");
+
+        m_groundMaterial = InitializeMaterial(groundVertexShaders, groundFragmentShaders, false);
+        Texture2DLoader textureLoader(TextureObject::FormatRGBA, TextureObject::InternalFormatRGBA8);
+        std::shared_ptr<Texture2DObject> texture = textureLoader.LoadShared("textures/4429.jpg");
+        m_waterMaterial->SetUniformValue("groundPlane", texture);
+        m_groundMaterial->SetUniformValue("tex", texture);
+        m_groundMaterial->SetUniformValue("Color", glm::vec3(0.8f, 0.7f, 0.5f));
+        m_groundMaterial->SetBlendEquation(Material::BlendEquation::None);
+        m_groundMaterial->SetDepthWrite(true);
+    }
     //m_waterMaterial->SetDepthWrite(false);
-    m_waterMaterial->SetBlendEquation(Material::BlendEquation::Add);
-    m_waterMaterial->SetBlendParams(
-        Material::BlendParam::SourceAlpha,
-        Material::BlendParam::OneMinusSourceAlpha
-    );
-    m_waterMaterial->SetDepthTestFunction(Material::TestFunction::LessEqual);
-    std::vector<const char*> groundVertexShaders;
-    std::vector<const char*> groundFragmentShaders;
-    groundVertexShaders.push_back("shaders/simple.vert");
-    groundFragmentShaders.push_back("shaders/simple.frag");
-    m_groundMaterial = InitializeMaterial(groundVertexShaders, groundFragmentShaders);
-    m_groundMaterial->SetBlendEquation(Material::BlendEquation::None);
-    m_groundMaterial->SetDepthWrite(true);
 }
 
-std::shared_ptr<Material> RefractionApp::InitializeMaterial(std::vector<const char*> vertexShaderPaths, std::vector<const char*> fragmentShaderPaths)
+std::shared_ptr<Material> RefractionApp::InitializeMaterial(std::vector<const char*> vertexShaderPaths, std::vector<const char*> fragmentShaderPaths, bool time)
 {
   // Load and build shader
-    //std::vector<const char*> vertexShaderPaths;
     vertexShaderPaths.insert(vertexShaderPaths.begin(), "shaders/version330.glsl");
-    //vertexShaderPaths.push_back("shaders/simple.vert");
-
     Shader vertexShader = ShaderLoader(Shader::VertexShader).Load(vertexShaderPaths);
 
-    //std::vector<const char*> fragmentShaderPaths;
     fragmentShaderPaths.insert(fragmentShaderPaths.begin(), "shaders/version330.glsl");
-    //fragmentShaderPaths.push_back("shaders/basic.frag");
     Shader fragmentShader = ShaderLoader(Shader::FragmentShader).Load(fragmentShaderPaths);
 
     std::shared_ptr<ShaderProgram> shaderProgramPtr = std::make_shared<ShaderProgram>();
@@ -144,37 +156,21 @@ std::shared_ptr<Material> RefractionApp::InitializeMaterial(std::vector<const ch
     ShaderProgram::Location cameraPositionLocation = shaderProgramPtr->GetUniformLocation("CameraPosition");
     ShaderProgram::Location worldMatrixLocation = shaderProgramPtr->GetUniformLocation("WorldMatrix");
     ShaderProgram::Location viewProjMatrixLocation = shaderProgramPtr->GetUniformLocation("ViewProjMatrix");
-    auto groundLoc = shaderProgramPtr->GetUniformLocation("groundPlane");
-    //auto skyboxLoc = shaderProgramPtr->GetUniformLocation("Skybox");
-    //auto timeLoc   = shaderProgramPtr->GetUniformLocation("Time");
-    /*m_waterNormal = Texture2DLoader::LoadTextureShared(
-        "noise_maps/iceland_heightmap.png",
-        TextureObject::FormatRGB,
-        TextureObject::InternalFormatRGB8
-        );*/
-        auto normalMapLoc = shaderProgramPtr->GetUniformLocation("NormalMap");
-        //auto planeSizeLoc = shaderProgramPtr->GetUniformLocation("PlaneSize");
-        // Register shader with renderer
-        m_renderer.RegisterShaderProgram(shaderProgramPtr,
-            [=](const ShaderProgram& shaderProgram, const glm::mat4& worldMatrix, const Camera& camera, bool cameraChanged)
+    ShaderProgram::Location timeLocation = shaderProgramPtr->GetUniformLocation("Time");
+    m_renderer.RegisterShaderProgram(shaderProgramPtr,
+        [=](const ShaderProgram& shaderProgram, const glm::mat4& worldMatrix, const Camera& camera, bool cameraChanged)
+        {
+            if (cameraChanged)
             {
-                if (cameraChanged)
-                {
-                    shaderProgram.SetUniform(cameraPositionLocation, camera.ExtractTranslation());
-                    shaderProgram.SetUniform(viewProjMatrixLocation, camera.GetViewProjectionMatrix());
-                    //float time = (float)glfwGetTime(); // or your engine time
-                    //shaderProgramPtr->SetTexture(normalMapLoc, 1, *m_waterNormal);
-                    
-                    //shaderProgram.SetUniform(timeLoc, time);
-                }
-            //shaderProgramPtr->SetTexture(skyboxLoc, 0, *m_skyboxTexture);
-            //shaderProgram.SetUniform(groundLoc, *m_groundTexture);
+                shaderProgram.SetUniform(cameraPositionLocation, camera.ExtractTranslation());
+                shaderProgram.SetUniform(viewProjMatrixLocation, camera.GetViewProjectionMatrix());
+            }
+            if (time)
+                shaderProgram.SetUniform(timeLocation, delta_time);
             shaderProgram.SetUniform(worldMatrixLocation, worldMatrix);
-            //shaderProgram.SetUniform(planeSizeLoc, planeSize);
         },
         m_renderer.GetDefaultUpdateLightsFunction(*shaderProgramPtr)
     );
-
 
     // Create reference material
     assert(shaderProgramPtr);
@@ -196,13 +192,13 @@ void RefractionApp::InitializeModels()
     TextureCubemapObject::Unbind();
 
     // Ground
-    std::shared_ptr<Mesh> groundMesh = CreatePlaneFromImage("noise_maps/pngtree-black-gradient-translucent-png-image_4511241.jpeg", 1.0f, 0.01f, true);
+    std::shared_ptr<Mesh> groundMesh = CreatePlaneFromImage("noise_maps/iceland_heightmap.png", 1.0f, 0.01f, true);
     std::shared_ptr<Model> groundModel = std::make_shared<Model>(groundMesh);
     groundModel->AddMaterial(m_groundMaterial);
     std::shared_ptr<SceneModel> groundNode = std::make_shared<SceneModel>("ground", groundModel);
     //m_groundTexture = groundModel;
 
-    std::shared_ptr<Mesh> waterMesh = CreatePlaneFromImage("noise_maps/iceland_heightmap.png", 1.0f, 0.01f, false);
+    std::shared_ptr<Mesh> waterMesh = CreatePlaneFromImage("noise_maps/iceland_heightmap.png", 0.5f, 0.01f, false);
     std::shared_ptr<Model> waterModel = std::make_shared<Model>(waterMesh);
     waterModel->AddMaterial(m_waterMaterial);
     std::shared_ptr<SceneModel> waterNode = std::make_shared<SceneModel>("water", waterModel);
@@ -211,11 +207,10 @@ void RefractionApp::InitializeModels()
     
 
 }
-/*
+
 void RefractionApp::InitializeFramebuffers() {
     int width, height;
     GetMainWindow().GetDimensions(width, height);
-
     // Scene Texture
     m_sceneTexture = std::make_shared<Texture2DObject>();
     m_sceneTexture->Bind();
@@ -223,9 +218,21 @@ void RefractionApp::InitializeFramebuffers() {
     m_sceneTexture->SetParameter(TextureObject::ParameterEnum::MinFilter, GL_LINEAR);
     m_sceneTexture->SetParameter(TextureObject::ParameterEnum::MagFilter, GL_LINEAR);
     Texture2DObject::Unbind();
+    
+        // Scene framebuffer
+    //assert(false);
+    m_sceneFramebuffer = std::make_shared<FramebufferObject>();
+    m_sceneFramebuffer->Bind();
+    m_sceneFramebuffer->SetTexture(FramebufferObject::Target::Draw, FramebufferObject::Attachment::Depth, *m_depthTexture);
+    m_sceneFramebuffer->SetTexture(FramebufferObject::Target::Draw, FramebufferObject::Attachment::Color0, *m_sceneTexture);
+    m_sceneFramebuffer->SetDrawBuffers(std::array<FramebufferObject::Attachment, 1>({ FramebufferObject::Attachment::Color0 }));
+    FramebufferObject::Unbind();
+    
+    Texture2DObject::Unbind();
+    FramebufferObject::Unbind();
 
 }
-*/
+
 void RefractionApp::InitializeRenderer()
 {
     unsigned int m_opaqueCollection = m_renderer.AddDrawcallCollection(
@@ -240,20 +247,49 @@ void RefractionApp::InitializeRenderer()
             return dc.GetMaterial().HasBlend();
         }
     );   
-    m_renderer.AddRenderPass(std::make_unique<SkyboxRenderPass>(m_skyboxTexture));
-         
+    /*
     int width, height;
     GetMainWindow().GetDimensions(width, height);
     std::unique_ptr<GBufferRenderPass> opaqueRenderPass(std::make_unique<GBufferRenderPass>(width, height, m_opaqueCollection));
+    m_depthTexture = opaqueRenderPass->GetDepthTexture();
+
+    m_waterMaterial->SetUniformValue("DepthTexture", opaqueRenderPass->GetDepthTexture());
+    m_waterMaterial->SetUniformValue("groundPlane", opaqueRenderPass->GetAlbedoTexture());
+    //std::shared_ptr<Texture2DObject> albedo = opaqueRenderPass->GetAlbedoTexture();
     m_renderer.AddRenderPass(std::move(opaqueRenderPass));
-    
-    //m_waterMaterial->SetUniformValue("groundPlane", opaqueRenderPass->GetAlbedoTexture());
-    //m_renderer.AddRenderPass(std::make_unique<ForwardRenderPass>(m_opaqueCollection));
-    cout << "added buffer pass\n";
+    m_renderer.AddRenderPass(std::make_unique<DeferredRenderPass>(m_waterMaterial, m_sceneFramebuffer));
+    InitializeFramebuffers();*/
+    //m_renderer.SetCurrentFramebuffer(m_renderer.GetCurrentFramebuffer());
+    m_renderer.AddRenderPass(std::make_unique<SkyboxRenderPass>(m_skyboxTexture));
+    m_renderer.AddRenderPass(std::make_unique<ForwardRenderPass>(m_opaqueCollection));
     m_renderer.AddRenderPass(std::make_unique<ForwardRenderPass>(m_transparentCollection));
-    
-    cout << "transparent pass\n";
+    //std::shared_ptr<Material> copyMaterial = CreatePostFXMaterial("shaders/renderer/copy.frag", m_sceneTexture);
+    //m_renderer.AddRenderPass(std::make_unique<PostFXRenderPass>(copyMaterial, m_renderer.GetDefaultFramebuffer()));
     glDisable(GL_CULL_FACE);
+}
+
+std::shared_ptr<Material> RefractionApp::CreatePostFXMaterial(const char* fragmentShaderPath, std::shared_ptr<Texture2DObject> sourceTexture)
+{
+    // We could keep this vertex shader and reuse it, but it looks simpler this way
+    std::vector<const char*> vertexShaderPaths;
+    vertexShaderPaths.push_back("shaders/version330.glsl");
+    vertexShaderPaths.push_back("shaders/renderer/fullscreen.vert");
+    Shader vertexShader = ShaderLoader(Shader::VertexShader).Load(vertexShaderPaths);
+
+    std::vector<const char*> fragmentShaderPaths;
+    fragmentShaderPaths.push_back("shaders/version330.glsl");
+    fragmentShaderPaths.push_back("shaders/utils.glsl");
+    fragmentShaderPaths.push_back(fragmentShaderPath);
+    Shader fragmentShader = ShaderLoader(Shader::FragmentShader).Load(fragmentShaderPaths);
+
+    std::shared_ptr<ShaderProgram> shaderProgramPtr = std::make_shared<ShaderProgram>();
+    shaderProgramPtr->Build(vertexShader, fragmentShader);
+
+    // Create material
+    std::shared_ptr<Material> material = std::make_shared<Material>(shaderProgramPtr);
+    material->SetUniformValue("SourceTexture", sourceTexture);
+    
+    return material;
 }
 
 void RefractionApp::RenderGUI()

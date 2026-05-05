@@ -62,6 +62,9 @@ void main()
 */
 void main()
 {    
+    vec2 uv1 = UV * 1.0 + vec2(sin(Time) * 0.02, 0.0);
+    
+    vec2 uv2 = UV * 0.05 + vec2(0.0, Time * 0.03);
     vec3 I = normalize(WorldPos - CameraPosition);
     
         // --- refraction ---
@@ -71,13 +74,15 @@ void main()
     // --- reflection ---
     vec3 reflDir = reflect(I, normalize(Normal));
     float fresnel = pow(1.0 - max(dot(-I, normalize(Normal)), 0.0), 5.0);
-    vec3 refrColor = texture(Skybox, refrDir).rgb;
+    //vec2 refrUV = UV + refrDir.xy;
+    vec3 refrColor = texture(groundPlane, uv1).rgb;
+    //vec3 refrColor = texture(Skybox, refrDir).rgb;
     vec3 reflColor = texture(Skybox, reflDir).rgb;
     vec3 color = mix(refrColor, reflColor, fresnel);
 
     // slight water tint
-    color = mix(color, vec3(0.0, 0.25, 0.4), 0.2);
-
-    FragColor = vec4(color, 0.9);
+    color = mix(color, vec3(0.0, 0.25, 0.4), 0.3);
+    //FragColor = texture(groundPlane, UV);
+    FragColor = vec4(color, 0.7);
 }
 //*/
