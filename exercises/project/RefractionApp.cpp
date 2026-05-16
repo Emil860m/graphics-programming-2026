@@ -28,6 +28,10 @@
 
 #include <ituGL/scene/ImGuiSceneVisitor.h>
 #include <imgui.h>
+#include "perlin.h"
+
+#define HEIGHT 1024
+#define WIDTH 1024
 
 #include <iostream>
 using namespace std;
@@ -56,7 +60,6 @@ void RefractionApp::Initialize()
 void RefractionApp::Update()
 {
     Application::Update();
-    cout << GetDeltaTime() << "\n";
     delta_time += GetDeltaTime();
 
     // Update camera controller
@@ -120,6 +123,10 @@ void RefractionApp::InitializeMaterials() {
             Material::BlendParam::SourceAlpha,
             Material::BlendParam::OneMinusSourceAlpha
         );
+        Texture2DLoader textureLoader(TextureObject::FormatRGBA, TextureObject::InternalFormatRGBA8);
+        std::shared_ptr<Texture2DObject> texture = textureLoader.LoadShared("noise_maps/noise.jpg");
+        m_waterMaterial->SetUniformValue("NormalMap", texture);
+        m_waterMaterial->SetUniformValue("source_color", glm::vec4(0.0, 0.25, 0.4, 1.0));
         m_waterMaterial->SetDepthTestFunction(Material::TestFunction::LessEqual);
     }
     {
@@ -192,13 +199,13 @@ void RefractionApp::InitializeModels()
     TextureCubemapObject::Unbind();
 
     // Ground
-    std::shared_ptr<Mesh> groundMesh = CreatePlaneFromImage("noise_maps/iceland_heightmap.png", 1.0f, 0.01f, true);
+    std::shared_ptr<Mesh> groundMesh = CreatePlaneFromImage("noise_maps/iceland_heightmap.png", 1.0f, 0.01f, true, 0.7f);
     std::shared_ptr<Model> groundModel = std::make_shared<Model>(groundMesh);
     groundModel->AddMaterial(m_groundMaterial);
     std::shared_ptr<SceneModel> groundNode = std::make_shared<SceneModel>("ground", groundModel);
     //m_groundTexture = groundModel;
 
-    std::shared_ptr<Mesh> waterMesh = CreatePlaneFromImage("noise_maps/iceland_heightmap.png", 0.5f, 0.01f, false);
+    std::shared_ptr<Mesh> waterMesh = CreatePlaneFromImage("noise_maps/iceland_heightmap.png", 0.5f, 0.01f, false, 0.0f);
     std::shared_ptr<Model> waterModel = std::make_shared<Model>(waterMesh);
     waterModel->AddMaterial(m_waterMaterial);
     std::shared_ptr<SceneModel> waterNode = std::make_shared<SceneModel>("water", waterModel);
@@ -306,224 +313,37 @@ void RefractionApp::RenderGUI()
     m_imGui.EndFrame();
 }
 
-std::shared_ptr<Mesh> RefractionApp::CreatePlaneMesh(int width, int depth, float spacing)
-{
-    std::shared_ptr<Mesh> mesh = std::make_shared<Mesh>();
-
-    struct Vertex
-    {
-        glm::vec3 position;
-        glm::vec3 normal;
-    };
-
-    std::vector<Vertex> vertices;
-    std::vector<unsigned int> indices;
-
-    // --- Generate vertices ---
-    for (int z = 0; z <= depth; ++z)
-    {
-        for (int x = 0; x <= width; ++x)
-        {
-            float xpos = x * spacing - (width * spacing * 0.5f);
-            float zpos = z * spacing - (depth * spacing * 0.5f);
-            //float y = sin(x);
-            float y = 0.0f;
-            vertices.push_back({
-                glm::vec3(xpos, y, zpos),
-                glm::vec3(0.0f, 1.0f, 0.0f)
-            });
-        }
-    }
-
-    // --- Generate indices ---
-    for (int z = 0; z < depth; ++z)
-    {
-        for (int x = 0; x < width; ++x)
-        {
-            int i0 = z * (width + 1) + x;
-            int i1 = i0 + 1;
-            int i2 = i0 + (width + 1);
-            int i3 = i2 + 1;
-
-            indices.push_back(i0);
-            indices.push_back(i2);
-            indices.push_back(i1);
-
-            indices.push_back(i1);
-            indices.push_back(i2);
-            indices.push_back(i3);
-        }
-    }
-
-    // --- Layout ---
-    std::vector<VertexAttribute::Layout> layout = {
-        VertexAttribute::Layout(
-            VertexAttribute(Data::Type::Float, 3, VertexAttribute::Semantic::Position),
-            offsetof(Vertex, position),
-            sizeof(Vertex)
-        ),
-        VertexAttribute::Layout(
-            VertexAttribute(Data::Type::Float, 3, VertexAttribute::Semantic::Normal),
-            offsetof(Vertex, normal),
-            sizeof(Vertex)
-        )
-    };
-
-    mesh->AddSubmesh<Vertex, unsigned int>(
-        Drawcall::Primitive::Triangles,
-        std::span<const Vertex>(vertices.data(), vertices.size()),
-        std::span<const unsigned int>(indices.data(), indices.size()),
-        layout.begin(),
-        layout.end()
-    );
-
-    return mesh;
-}
-std::shared_ptr<Mesh> RefractionApp::CreateCubeMesh()  {
-    std::shared_ptr<Mesh> mesh = std::make_shared<Mesh>();
-    struct Vertex
-    {
-        glm::vec3 position;
-        glm::vec3 normal;
-    };
-    std::vector<Vertex> vertices = {/*
-    // Front (+Z)
-    {{-0.5f,-0.5f, 0.5f}, {0,0,1}},
-    {{ 0.5f,-0.5f, 0.5f}, {0,0,1}},
-    {{ 0.5f, 0.5f, 0.5f}, {0,0,1}},
-    {{-0.5f, 0.5f, 0.5f}, {0,0,1}},
-
-    // Back (-Z)
-    {{-0.5f,-0.5f,-0.5f}, {0,0,-1}},
-    {{ 0.5f,-0.5f,-0.5f}, {0,0,-1}},
-    {{ 0.5f, 0.5f,-0.5f}, {0,0,-1}},
-    {{-0.5f, 0.5f,-0.5f}, {0,0,-1}},
-
-    // Left (-X)
-    {{-0.5f,-0.5f,-0.5f}, {-1,0,0}},
-    {{-0.5f,-0.5f, 0.5f}, {-1,0,0}},
-    {{-0.5f, 0.5f, 0.5f}, {-1,0,0}},
-    {{-0.5f, 0.5f,-0.5f}, {-1,0,0}},
-
-    // Right (+X)
-    {{ 0.5f,-0.5f,-0.5f}, {1,0,0}},
-    {{ 0.5f,-0.5f, 0.5f}, {1,0,0}},
-    {{ 0.5f, 0.5f, 0.5f}, {1,0,0}},
-    {{ 0.5f, 0.5f,-0.5f}, {1,0,0}},
-
-    // Top (+Y)
-    {{-0.5f, 0.5f,-0.5f}, {0,1,0}},
-    {{ 0.5f, 0.5f,-0.5f}, {0,1,0}},
-    {{ 0.5f, 0.5f, 0.5f}, {0,1,0}},
-    {{-0.5f, 0.5f, 0.5f}, {0,1,0}},*/
-
-    // Bottom (-Y)
-    {{-0.5f,-40.0f,-0.5f}, {0,-1,0}},
-    {{ 0.5f,-40.0f,-0.5f}, {0,-1,0}},
-    {{ 0.5f,100.0f, 0.5f}, {0,-1,0}},
-    {{-0.5f,100.0f, 0.5f}, {0,-1,0}},
-    
-};
-    
-    /*
-    {
-        // positions          // normals
-        {{-0.5f, -0.5f, -0.5f},  {0.0f,  0.0f, -1.0f}},
-        {{ 0.5f, -0.5f, -0.5f},  {0.0f,  0.0f, -1.0f}},
-        {{ 0.5f,  0.5f, -0.5f},  {0.0f,  0.0f, -1.0f}},
-        {{ 0.5f,  0.5f, -0.5f},  {0.0f,  0.0f, -1.0f}},
-        {{-0.5f,  0.5f, -0.5f},  {0.0f,  0.0f, -1.0f}},
-        {{-0.5f, -0.5f, -0.5f},  {0.0f,  0.0f, -1.0f}},
-
-        {{-0.5f, -0.5f,  0.5f},  {0.0f,  0.0f, 1.0f}},
-        {{ 0.5f, -0.5f,  0.5f},  {0.0f,  0.0f, 1.0f}},
-        {{ 0.5f,  0.5f,  0.5f},  {0.0f,  0.0f, 1.0f}},
-        {{ 0.5f,  0.5f,  0.5f},  {0.0f,  0.0f, 1.0f}},
-        {{-0.5f,  0.5f,  0.5f},  {0.0f,  0.0f, 1.0f}},
-        {{-0.5f, -0.5f,  0.5f},  {0.0f,  0.0f, 1.0f}},
-
-        {{-0.5f,  0.5f,  0.5f}, {-1.0f,  0.0f,  0.0f}},
-        {{-0.5f,  0.5f, -0.5f}, {-1.0f,  0.0f,  0.0f}},
-        {{-0.5f, -0.5f, -0.5f}, {-1.0f,  0.0f,  0.0f}},
-        {{-0.5f, -0.5f, -0.5f}, {-1.0f,  0.0f,  0.0f}},
-        {{-0.5f, -0.5f,  0.5f}, {-1.0f,  0.0f,  0.0f}},
-        {{-0.5f,  0.5f,  0.5f}, {-1.0f,  0.0f,  0.0f}},
-
-        {{ 0.5f,  0.5f,  0.5f},  {1.0f,  0.0f,  0.0f}},
-        {{ 0.5f,  0.5f, -0.5f},  {1.0f,  0.0f,  0.0f}},
-        {{ 0.5f, -0.5f, -0.5f},  {1.0f,  0.0f,  0.0f}},
-        {{ 0.5f, -0.5f, -0.5f},  {1.0f,  0.0f,  0.0f}},
-        {{ 0.5f, -0.5f,  0.5f},  {1.0f,  0.0f,  0.0f}},
-        {{ 0.5f,  0.5f,  0.5f},  {1.0f,  0.0f,  0.0f}},
-
-        {{-0.5f, -0.5f, -0.5f},  {0.0f, -1.0f,  0.0f}},
-        {{ 0.5f, -0.5f, -0.5f},  {0.0f, -1.0f,  0.0f}},
-        {{ 0.5f, -0.5f,  0.5f},  {0.0f, -1.0f,  0.0f}},
-        {{ 0.5f, -0.5f,  0.5f},  {0.0f, -1.0f,  0.0f}},
-        {{-0.5f, -0.5f,  0.5f},  {0.0f, -1.0f,  0.0f}},
-        {{-0.5f, -0.5f, -0.5f},  {0.0f, -1.0f,  0.0f}},
-
-        {{-0.5f,  0.5f, -0.5f},  {0.0f,  1.0f,  0.0f}},
-        {{ 0.5f,  0.5f, -0.5f},  {0.0f,  1.0f,  0.0f}},
-        {{ 0.5f,  0.5f,  0.5f},  {0.0f,  1.0f,  0.0f}},
-        {{ 0.5f,  0.5f,  0.5f},  {0.0f,  1.0f,  0.0f}},
-        {{-0.5f,  0.5f,  0.5f},  {0.0f,  1.0f,  0.0f}},
-        {{-0.5f,  0.5f, -0.5f},  {0.0f,  1.0f,  0.0f}},
-    };
-    */
-
-    std::vector<unsigned int> indices = {
-        0,1,2, 2,3,0,
-        4,5,6, 6,7,4,
-        8,9,10, 10,11,8,
-        12,13,14, 14,15,12,
-        16,17,18, 18,19,16,
-        20,21,22, 22,23,20
-    };
-
-    // --- Correct layout construction ---
-    VertexAttribute positionAttr(
-        Data::Type::Float,     // type
-        3,                     // vec3
-        VertexAttribute::Semantic::Position
-    );
-
-    std::vector<VertexAttribute::Layout> layout = {
-        VertexAttribute::Layout(
-            VertexAttribute(Data::Type::Float, 3, VertexAttribute::Semantic::Position),
-            offsetof(Vertex, position),
-            sizeof(Vertex)
-        ),
-        VertexAttribute::Layout(
-            VertexAttribute(Data::Type::Float, 3, VertexAttribute::Semantic::Normal),
-            offsetof(Vertex, normal),
-            sizeof(Vertex)
-        )
-    };
-    mesh->AddSubmesh(
-        Drawcall::Primitive::Triangles,
-        std::span<const Vertex>(vertices),
-        std::span<const unsigned int>(indices),
-        layout.begin(),
-        layout.end()
-    );
-    return mesh;
-}
 
 float GetBrightness(unsigned char r, unsigned char g, unsigned char b)
 {
     return (0.2126f * r + 0.7152f * g + 0.0722f * b) / 255.0f;
+}
+std::shared_ptr<Mesh> RefractionApp::CreatePlaneFromNoise(float gradient_strength) {
+    unsigned char* data = generatePerlinNoise(HEIGHT * 3, WIDTH * 3, 100.0, 4, 0.5f, gradient_strength);
+    if (!data)
+    {
+        throw std::runtime_error("Failed to load image");
+    }
+    struct Vertex
+    {
+        glm::vec3 position;
+        glm::vec3 normal;
+    };
 }
 
 std::shared_ptr<Mesh> RefractionApp::CreatePlaneFromImage(
     const char* path,
     float heightScale,
     float spacing,
-    bool use_height)
+    bool use_height,
+    float gradient_strength)
 {
     int width, height, channels;
     //stbi_set_flip_vertically_on_load(true);
-    unsigned char* data = stbi_load(path, &width, &height, &channels, 3);
+    width = WIDTH;
+    height = HEIGHT;
+    unsigned char* data = generatePerlinNoise(height * 3, width * 3, 100.0, 4, 0.5f, gradient_strength);
+    //unsigned char* data = stbi_load(path, &width, &height, &channels, 3);
     if (!data)
     {
         throw std::runtime_error("Failed to load image");
@@ -535,7 +355,6 @@ std::shared_ptr<Mesh> RefractionApp::CreatePlaneFromImage(
         glm::vec3 normal;
         glm::vec2 uv;
     };
-
     std::vector<Vertex> vertices;
     std::vector<unsigned int> indices;
     std::vector<float> heights(width * height);
@@ -545,7 +364,7 @@ std::shared_ptr<Mesh> RefractionApp::CreatePlaneFromImage(
         for (int x = 0; x < width; ++x)
         {
             int idx = (z * width + x) * 3;
-
+            //cout << data[idx] << "\n";
             float brightness = GetBrightness(
                 data[idx],
                 data[idx + 1],
@@ -571,6 +390,7 @@ std::shared_ptr<Mesh> RefractionApp::CreatePlaneFromImage(
     {
         for (int x = 0; x < width; ++x)
         {
+            int idx = (z * width + x) * 3;
             float hL = getHeight(x - 1, z);
             float hR = getHeight(x + 1, z);
             float hD = getHeight(x, z - 1);
@@ -582,6 +402,7 @@ std::shared_ptr<Mesh> RefractionApp::CreatePlaneFromImage(
             float u = (float)x / (width - 1);
             float v = (float)z / (height - 1);
             // build normal
+            //glm::vec3 normal = glm::normalize(glm::vec3(data[idx], data[idx + 1], data[idx + 2]));
             glm::vec3 normal = glm::normalize(glm::vec3(-dx, 1.0f, -dz));
             //glm::vec3 normal = glm::normalize(glm::vec3(1.0f, 0.0f, 0.0f));
 

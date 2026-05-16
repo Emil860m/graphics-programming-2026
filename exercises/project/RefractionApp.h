@@ -36,8 +36,8 @@ private:
 
     std::shared_ptr<Mesh> CreatePlaneMesh(int width, int depth, float spacing);
 
-    std::shared_ptr<Mesh> CreatePlaneFromImage( const char* path, float heightScale, float spacing, bool use_height);
-
+    std::shared_ptr<Mesh> CreatePlaneFromImage( const char* path, float heightScale, float spacing, bool use_height, float gradient_strength);
+    std::shared_ptr<Mesh> CreatePlaneFromNoise(float gradient_strength);
 
     std::shared_ptr<Mesh> CreateCubeMesh();
 
