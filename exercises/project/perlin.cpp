@@ -3,16 +3,18 @@
 #include <iostream>
 #include <cstdint>
 #include <iostream>
+#define STB_IMAGE_WRITE_IMPLEMENTATION 
+#include "stb_image_write.h"
 //using namespace std;
 
 // --------------------------------------------------
 // Utility Functions
 // --------------------------------------------------
 
-static float lerp(float a, float b, float t)
-{
-    return a + t * (b - a);
-}
+unsigned g_Seed = 0;
+
+
+
 
 static float fade(float t)
 {
@@ -24,8 +26,8 @@ static float randomGradient(int ix, int iy)
     const unsigned w = 8 * sizeof(unsigned);
     const unsigned s = w / 2;
 
-    unsigned a = ix;
-    unsigned b = iy;
+    unsigned a = ix + g_Seed;
+    unsigned b = iy + g_Seed * 31;
 
     a *= 3284157443;
     b ^= a << s | a >> (w - s);
@@ -118,7 +120,7 @@ unsigned char* generatePerlinNoise(
     float scale,
     int octaves,
     float persistence,
-    float gradient_strength)
+    float noiseStrength)
 {
     unsigned char* data = new unsigned char[width * height];
 
@@ -128,7 +130,7 @@ unsigned char* generatePerlinNoise(
         {
             float nx = x / scale;
             float ny = y / scale;
-
+            //float noise = 1.0;
             float noise = octavePerlin(
                 nx,
                 ny,
@@ -143,7 +145,7 @@ unsigned char* generatePerlinNoise(
             // -------------------------------------- // Blend Noise + Gradient // -------------------------------------- 
             // 0.0 = pure gradient 
             // 1.0 = pure noise 
-            float noiseStrength = gradient_strength; 
+            //float noiseStrength = 1.0f; 
             float finalValue = gradient * (1.0f - noiseStrength) + noise * noiseStrength; 
             // Clamp 
             if (finalValue < 0.0f) finalValue = 0.0f; 
@@ -153,16 +155,17 @@ unsigned char* generatePerlinNoise(
             data[y * width + x] = value;
         }
     }
-
+    std::cout << strlen((char*)data) << "\n";
     return data;
 }
 
 // --------------------------------------------------
 // Main
 // --------------------------------------------------
-/*
-int main()
+
+int save_image(float noiseStrength, const char* filename)
 {
+    g_Seed = (unsigned)time(nullptr);
     const int width = 1024;
     const int height = 1024;
 
@@ -171,12 +174,13 @@ int main()
             width,
             height,
             150.0f, // scale
-            6,      // octaves
-            0.5f    // persistence
+            8,      // octaves
+            0.3f,    // persistence
+            noiseStrength
         );
 
     int success = stbi_write_png(
-        "perlin_octaves.png",
+        filename,
         width,
         height,
         1,
@@ -202,7 +206,7 @@ int main()
 // --------------------------------------------------
 // Example Usage
 // --------------------------------------------------
-
+/*
 int main()
 {
     const int width = 256;

@@ -31,16 +31,18 @@ private:
     void InitializeMaterials();
     void InitializeShaders();
     void InitializeFramebuffers();
+    void InitializeNormals(float spacing);
+    std::vector<float> InitializeNormal(const char* path);
     std::shared_ptr<Material> CreatePostFXMaterial(const char* fragmentShaderPath, std::shared_ptr<Texture2DObject> sourceTexture);
-    
+    std::shared_ptr<Mesh> CreatePlane(float spacing);
 
     std::shared_ptr<Mesh> CreatePlaneMesh(int width, int depth, float spacing);
 
     std::shared_ptr<Mesh> CreatePlaneFromImage( const char* path, float heightScale, float spacing, bool use_height, float gradient_strength);
-    std::shared_ptr<Mesh> CreatePlaneFromNoise(float gradient_strength);
+    std::shared_ptr<Mesh> CreatePlaneFromNoise(float spacing, float gradient_strength, bool use_height);
 
     std::shared_ptr<Mesh> CreateCubeMesh();
-
+    glm::vec3 getNormal(int x, int z, bool either, float spacing);
     void RenderGUI();
 private:
     // Helper object for debug GUI
@@ -70,4 +72,11 @@ private:
     glm::vec2 planeSize;
     std::shared_ptr<FramebufferObject> m_sceneFramebuffer;
     std::shared_ptr<Texture2DObject> m_depthTexture;
+
+
+    std::shared_ptr<Mesh> ground_normal;
+    std::shared_ptr<Mesh> waterNormal1;
+    std::shared_ptr<Mesh> waterNormal2;
+    std::vector<float> heightmap1;
+    std::vector<float> heightmap2;
 };
