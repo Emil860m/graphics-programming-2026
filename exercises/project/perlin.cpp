@@ -82,6 +82,53 @@ float perlin(float x, float y)
 }
 
 // --------------------------------------------------
+// Tileable Perlin Noise
+// repeatX/repeatY define tile period
+// --------------------------------------------------
+
+float perlinTiled(
+    float x,
+    float y,
+    int repeatX,
+    int repeatY)
+{
+    int x0 = (int)floor(x);
+    int x1 = x0 + 1;
+
+    int y0 = (int)floor(y);
+    int y1 = y0 + 1;
+
+    // Wrap lattice points
+    x0 = x0 % repeatX;
+    x1 = x1 % repeatX;
+
+    y0 = y0 % repeatY;
+    y1 = y1 % repeatY;
+
+    if (x0 < 0) x0 += repeatX;
+    if (x1 < 0) x1 += repeatX;
+
+    if (y0 < 0) y0 += repeatY;
+    if (y1 < 0) y1 += repeatY;
+
+    float sx = fade(x - floor(x));
+    float sy = fade(y - floor(y));
+
+    float n0, n1, ix0, ix1;
+
+    n0 = dotGridGradient(x0, y0, x, y);
+    n1 = dotGridGradient(x1, y0, x, y);
+    ix0 = lerp(n0, n1, sx);
+
+    n0 = dotGridGradient(x0, y1, x, y);
+    n1 = dotGridGradient(x1, y1, x, y);
+    ix1 = lerp(n0, n1, sx);
+
+    return lerp(ix0, ix1, sy);
+}
+
+
+// --------------------------------------------------
 // Fractal Brownian Motion (Octaves)
 // --------------------------------------------------
 
@@ -110,6 +157,38 @@ float octavePerlin(
     return total / maxValue;
 }
 
+float octavePerlinTiled(
+    float x,
+    float y,
+    int repeatX,
+    int repeatY,
+    int octaves)
+{
+    float total = 0.0f;
+    float maxValue = 0.0f;
+
+    float frequency = 1.0f;
+
+    float amplitude = 1.0f;
+    for (size_t i = 0; i < octaves; i++)
+    {
+
+        total += perlinTiled(
+            x * frequency,
+            y * frequency,
+            (int)(repeatX * frequency),
+            (int)(repeatY * frequency)
+        ) * amplitude;
+
+        maxValue += amplitude;
+
+        frequency *= 2.0f;
+    }
+
+    return total / maxValue;
+}
+
+
 // --------------------------------------------------
 // Generate Noise Image
 // --------------------------------------------------
@@ -130,23 +209,32 @@ unsigned char* generatePerlinNoise(
         {
             float nx = x / scale;
             float ny = y / scale;
-            //float noise = 1.0;
-            float noise = octavePerlin(
+            //float noise = -1.0;
+            float noise = 
+            octavePerlin(
                 nx,
                 ny,
                 octaves,
                 persistence);
-
+                /*
+                octavePerlinTiled(
+                nx,
+                ny,
+                (int)(width / scale),
+                (int)(height / scale),
+                octaves
+            );
+            */
             // Convert from [-1,1] to [0,1]
             noise = (noise + 1.0f) * 0.5f;
+            float gradient = (float)y / (float)(height - 1); 
+            float finalValue = gradient * (1.0f - noiseStrength) + noise * noiseStrength; 
             //std::cout << noise << "\n";
             // Clamp
-            float gradient = (float)x / (float)(width - 1); 
             // -------------------------------------- // Blend Noise + Gradient // -------------------------------------- 
             // 0.0 = pure gradient 
             // 1.0 = pure noise 
             //float noiseStrength = 1.0f; 
-            float finalValue = gradient * (1.0f - noiseStrength) + noise * noiseStrength; 
             // Clamp 
             if (finalValue < 0.0f) finalValue = 0.0f; 
             if (finalValue > 1.0f) finalValue = 1.0f; 
@@ -163,11 +251,11 @@ unsigned char* generatePerlinNoise(
 // Main
 // --------------------------------------------------
 
-int save_image(float noiseStrength, const char* filename)
+int save_image(float noiseStrength, const char* filename, int scale)
 {
     g_Seed = (unsigned)time(nullptr);
-    const int width = 1024;
-    const int height = 1024;
+    const int width = 27 * scale;
+    const int height = 15 * scale;
 
     unsigned char* image =
         generatePerlinNoise(

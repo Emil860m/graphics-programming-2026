@@ -12,7 +12,6 @@ uniform mat4 ViewProjMatrix;
 void main()
 {
     Height = VertexPosition.y;
-    vec3 vp = normalize(VertexPosition);
     WorldPos = (WorldMatrix * vec4(VertexPosition.x, 1.0, VertexPosition.z, 1.0)).xyz;
     Normal = mat3(WorldMatrix) * VertexNormal;
     UV = VertexUV;

@@ -18,13 +18,15 @@ uniform float uv_scale;
 uniform float movement_strength;
 uniform vec2 movement_direction;
 uniform vec2 texelSize;
+uniform float distortion_strength;
+uniform float fresnel_amount;
 
 uniform vec3 CameraPosition;
 uniform float Time;
 
 
 float fresnel(float amount, vec3 normal, vec3 view) {
-    return pow((1.0 - max(dot(normalize(normal), normalize(view)), 0.0)), amount);
+    return pow(1.0 - max(dot(view, normal), 0.0), amount);
 }
 
 vec3 getNormal(sampler2D tex, vec2 uv) {
@@ -44,33 +46,33 @@ vec3 getNormal(sampler2D tex, vec2 uv) {
 void main()
 {  
     vec2 uv = UV * uv_scale;
+    uv = fract(uv);
     vec2 uv_movement = movement_direction * Time * movement_strength;
     vec3 n1 = getNormal(Normal1, uv + uv_movement);
     vec3 n2 = getNormal(Normal2, uv - uv_movement);
-
     // combine
     vec3 normalMap = normalize(n1 + n2);
-    normalMap = normalize(TBN * normalMap);
+    vec3 normalMapTBN = normalize(TBN * normalMap);
 
-    // fresnel
+    // Viewspace
     vec3 I = normalize(WorldPos - CameraPosition);
-    float basic_fresnel = pow(1.0 - max(dot(-I, normalMap), 0.0), 1.0);
 
 
     //refraction
     float eta = 1.0 / 1.33;
-    vec3 refrDir = refract(I, normalMap, eta);
-    vec2 refrUV = refrDir.xy * 0.5 + 0.5;
+    vec3 refrDir = refract(I, normalMapTBN, eta);
+    vec2 refrUV = UV + normalMap.xy * distortion_strength;
     vec3 refrColor = texture(groundPlane, refrUV).rgb;
 
     //reflection
-    vec3 reflDir = reflect(I, normalMap);
+    vec3 reflDir = reflect(I, normalMapTBN);
     vec3 reflColor = texture(Skybox, reflDir).rgb;
+    reflColor = reflColor * 0.5;
+
     // mix reflection, refraction and fresnel
-    vec3 color = mix(refrColor, reflColor,0.5);
-    color = color + (0.2 * basic_fresnel);
+    vec3 color = mix(refrColor, reflColor, fresnel(fresnel_amount, normalMapTBN, -I));
+
     // slight water tint
-    color = mix(color, source_color.rgb, 0.3);
-    FragColor = vec4(reflColor, 0.9);
-    //FragColor = vec4(normalMap * 0.5 + 0.5, 1.0);
+    color = mix(color, source_color.rgb, fresnel(fresnel_amount, normalMapTBN, -I));
+    FragColor = vec4(color, 0.9);
 }

@@ -3,7 +3,6 @@
 #include <ituGL/application/Application.h>
 
 #include <ituGL/scene/Scene.h>
-#include <ituGL/texture/FramebufferObject.h>
 #include <ituGL/renderer/Renderer.h>
 #include <ituGL/camera/CameraController.h>
 #include <ituGL/utils/DearImGui.h>
@@ -29,20 +28,9 @@ private:
     std::shared_ptr<Material> InitializeMaterial(std::vector<const char*> vertexShaderPaths, std::vector<const char*> fragmentShaderPaths, bool time);
     void InitializeRenderer();
     void InitializeMaterials();
-    void InitializeShaders();
-    void InitializeFramebuffers();
-    void InitializeNormals(float spacing);
-    std::vector<float> InitializeNormal(const char* path);
-    std::shared_ptr<Material> CreatePostFXMaterial(const char* fragmentShaderPath, std::shared_ptr<Texture2DObject> sourceTexture);
     std::shared_ptr<Mesh> CreatePlane(float spacing);
 
-    std::shared_ptr<Mesh> CreatePlaneMesh(int width, int depth, float spacing);
-
-    std::shared_ptr<Mesh> CreatePlaneFromImage( const char* path, float heightScale, float spacing, bool use_height, float gradient_strength);
-    std::shared_ptr<Mesh> CreatePlaneFromNoise(float spacing, float gradient_strength, bool use_height);
-
-    std::shared_ptr<Mesh> CreateCubeMesh();
-    glm::vec3 getNormal(int x, int z, bool either, float spacing);
+    std::shared_ptr<Mesh> CreatePlaneFromImage( const char* path, float heightScale, float spacing);
     void RenderGUI();
 private:
     // Helper object for debug GUI
@@ -65,18 +53,6 @@ private:
     // Default material
     std::shared_ptr<Material> m_groundMaterial;
     std::shared_ptr<Material> m_waterMaterial;
-    std::shared_ptr<Model> m_groundTexture;
-
-    std::shared_ptr<TextureObject> m_waterNormal;
-    std::shared_ptr<Texture2DObject> m_sceneTexture;
     glm::vec2 planeSize;
-    std::shared_ptr<FramebufferObject> m_sceneFramebuffer;
-    std::shared_ptr<Texture2DObject> m_depthTexture;
 
-
-    std::shared_ptr<Mesh> ground_normal;
-    std::shared_ptr<Mesh> waterNormal1;
-    std::shared_ptr<Mesh> waterNormal2;
-    std::vector<float> heightmap1;
-    std::vector<float> heightmap2;
 };

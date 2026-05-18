@@ -16,9 +16,8 @@ void main()
     //FragNormal = normalize(Normal).xy;
     //FragOthers = vec4(0.0);
     vec3 color = texture(tex, UV).rgb;
-    color = mix(color, vec3(0.0, 0.25, 0.4), 0.1);
+    //color = mix(color, vec3(0.0, 0.25, 0.4), 0.1);
     FragColor = vec4(color, 1.0);
     //float h = (Height + 8)/32.0f;	// shift and scale the height into a grayscale value
     //FragColor = vec4(Height, Height, Height, 1.0);
-    //FragColor = vec4(Color, 1.0);
 }
