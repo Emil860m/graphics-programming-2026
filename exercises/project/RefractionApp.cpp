@@ -9,10 +9,6 @@
 #include <ituGL/camera/Camera.h>
 #include <ituGL/scene/SceneCamera.h>
 
-#include <ituGL/lighting/DirectionalLight.h>
-#include <ituGL/lighting/PointLight.h>
-#include <ituGL/scene/SceneLight.h>
-
 #include <ituGL/shader/ShaderUniformCollection.h>
 #include <ituGL/shader/Material.h>
 #include <ituGL/geometry/Model.h>
@@ -25,11 +21,8 @@
 #include <ituGL/scene/ImGuiSceneVisitor.h>
 #include <imgui.h>
 
-#define HEIGHT 256
-#define WIDTH 256
+#define SPACING 0.01f
 
-#include <iostream>
-using namespace std;
 RefractionApp::RefractionApp()
     : Application(1024, 1024, "Water scene")
     , m_renderer(GetDevice())
@@ -39,21 +32,15 @@ RefractionApp::RefractionApp()
 void RefractionApp::Initialize()
 {
     Application::Initialize();
-    
-    // Initialize DearImGUI
+
     m_imGui.Initialize(GetMainWindow());
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     glEnable(GL_DEPTH_TEST);
-    cout << "Cam\n";
     InitializeCamera();
-    cout << "mats\n";
     InitializeMaterials();
-    cout << "models\n";
     InitializeModels();
-    cout << "renderer\n";
     InitializeRenderer();
-    cout << "Normals\n";
     glfwSetTime(0.0);
 }
 
@@ -134,12 +121,12 @@ void RefractionApp::InitializeMaterials() {
         m_waterMaterial->SetUniformValue("uv_scale", 0.5f);
         m_waterMaterial->SetUniformValue("normalMap1Str", 0.3f);
         m_waterMaterial->SetUniformValue("normalMap2Str", 0.4f);
-        m_waterMaterial->SetUniformValue("movement_strength", 1.0f);
+        m_waterMaterial->SetUniformValue("movement_strength", 0.5f);
         m_waterMaterial->SetUniformValue("waveHeight", 0.5f);
-        m_waterMaterial->SetUniformValue("distortion_strength", 0.5f);
+        m_waterMaterial->SetUniformValue("distortion_strength", 0.1f);
         m_waterMaterial->SetUniformValue("fresnel_amount", 2.0f);
         m_waterMaterial->SetUniformValue("movement_direction", glm::vec2(0.1f, 0.1f));
-        m_waterMaterial->SetUniformValue("source_color", glm::vec4(0.0, 0.3, 0.4, 1.0));
+        m_waterMaterial->SetUniformValue("source_color", glm::vec4(0.38f, 0.65f, 0.65f, 1.0));
         m_waterMaterial->SetDepthTestFunction(Material::TestFunction::LessEqual);
     }
     {
@@ -157,7 +144,6 @@ void RefractionApp::InitializeMaterials() {
         m_groundMaterial->SetBlendEquation(Material::BlendEquation::None);
         m_groundMaterial->SetDepthWrite(true);
     }
-    //m_waterMaterial->SetDepthWrite(false);
 }
 
 
@@ -213,14 +199,13 @@ void RefractionApp::InitializeModels()
     TextureCubemapObject::Unbind();
 
     // Ground
-    cout << "Groundplane\n";
-    std::shared_ptr<Mesh> groundMesh = CreatePlaneFromImage("noise_maps/perlin_octaves1.png", 1.0f, 0.02f);
+    std::shared_ptr<Mesh> groundMesh = CreatePlaneFromImage("noise_maps/perlin_octaves1.png", 1.0f, SPACING);
     std::shared_ptr<Model> groundModel = std::make_shared<Model>(groundMesh);
     groundModel->AddMaterial(m_groundMaterial);
     std::shared_ptr<SceneModel> groundNode = std::make_shared<SceneModel>("ground", groundModel);
 
-    cout << "waterplane\n";
-    std::shared_ptr<Mesh> waterMesh = CreatePlane(0.02f);
+    
+    std::shared_ptr<Mesh> waterMesh = CreatePlane(SPACING);
     std::shared_ptr<Model> waterModel = std::make_shared<Model>(waterMesh);
     waterModel->AddMaterial(m_waterMaterial);
     std::shared_ptr<SceneModel> waterNode = std::make_shared<SceneModel>("water", waterModel);
@@ -321,56 +306,53 @@ std::shared_ptr<Mesh> RefractionApp::CreatePlaneFromImage(
     };
 
 
-    // --- vertices ---
     for (int z = 0; z < height; ++z)
     {
         for (int x = 0; x < width; ++x)
         {
+            // position
+            float xpos = x * spacing - (width * spacing * 0.5f);
+            float zpos = z * spacing - (height * spacing * 0.5f);
+            float ypos = (heights[z * width + x] * 2) - 1;
+            
+            // normal
             float hL = getHeight(x - 1, z);
             float hR = getHeight(x + 1, z);
             float hD = getHeight(x, z - 1);
             float hU = getHeight(x, z + 1);
-            // slope
             float dx = (hR - hL) / (2.0f * spacing);
             float dz = (hU - hD) / (2.0f * spacing);
-            float u = (float)x / (width - 1);
-            float v = (float)z / (height - 1);
-            // build normal
             glm::vec3 normal = glm::normalize(glm::vec3(-dx, 1.0f, -dz));
             
-            float xpos = x * spacing - (width * spacing * 0.5f);
-            float zpos = z * spacing - (height * spacing * 0.5f);
-            float ypos = heights[z * width + x];
+            // uv
+            float u = (float)x / (width - 1);
+            float v = (float)z / (height - 1);
 
             vertices.push_back({
                 glm::vec3(xpos, ypos, zpos),
                 normal,
                 glm::vec2(u, v)
             });
+
+            // Indices
+            if (z != height - 1 && x != width - 1) {
+                unsigned int i0 = z * width + x;
+                unsigned int i1 = i0 + 1;
+                unsigned int i2 = i0 + width;
+                unsigned int i3 = i2 + 1;
+
+                indices.insert(indices.end(), {
+                    i0, i2, i1,
+                    i1, i2, i3
+                });
+            }
         }
     }
     
 
-    // --- indices ---
-    for (int z = 0; z < height - 1; ++z)
-    {
-        for (int x = 0; x < width - 1; ++x)
-        {
-            unsigned int i0 = z * width + x;
-            unsigned int i1 = i0 + 1;
-            unsigned int i2 = i0 + width;
-            unsigned int i3 = i2 + 1;
-
-            indices.insert(indices.end(), {
-                i0, i2, i1,
-                i1, i2, i3
-            });
-        }
-    }
-
     stbi_image_free(data);
 
-    // --- layout ---
+    // layout
     std::vector<VertexAttribute::Layout> layout = {
         VertexAttribute::Layout(
             VertexAttribute(Data::Type::Float, 3, VertexAttribute::Semantic::Position),
@@ -413,44 +395,40 @@ std::shared_ptr<Mesh> RefractionApp::CreatePlane(float spacing) {
     std::vector<unsigned int> indices;
     int width = planeSize[0];
     int height = planeSize[1];
-    cout << "vertices\n";
     for (int z = 0; z < height; ++z)
     {
         for (int x = 0; x < width; ++x)
         {
             
-            // slope
-            
+            // position
             float xpos = x * spacing - (width * spacing * 0.5f);
             float zpos = z * spacing - (height * spacing * 0.5f);
-            float ypos = 0.5f;
+            float ypos = 0.0f;
+
+            // uv
             float u = (float)x / (width - 1);
             float v = (float)z / (height - 1);
+
             vertices.push_back({
                 glm::vec3(xpos, ypos, zpos),
                 glm::vec2(u,v),
             });
+
+            // Indices
+            if (z != height - 1 && x != width - 1) {
+                unsigned int i0 = z * width + x;
+                unsigned int i1 = i0 + 1;
+                unsigned int i2 = i0 + width;
+                unsigned int i3 = i2 + 1;
+
+                indices.insert(indices.end(), {
+                    i0, i2, i1,
+                    i1, i2, i3
+                });
+            }
         }
     }
 
-    cout << "indices\n";
-    for (int z = 0; z < height - 1; ++z)
-    {
-        for (int x = 0; x < width - 1; ++x)
-        {
-            unsigned int i0 = z * width + x;
-            unsigned int i1 = i0 + 1;
-            unsigned int i2 = i0 + width;
-            unsigned int i3 = i2 + 1;
-            
-            indices.insert(indices.end(), {
-                i0, i2, i1,
-                i1, i2, i3
-            });
-        }
-    }
-
-    cout << "layout\n";
     std::vector<VertexAttribute::Layout> layout = {
         VertexAttribute::Layout(
             VertexAttribute(Data::Type::Float, 3, VertexAttribute::Semantic::Position),

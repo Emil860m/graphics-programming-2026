@@ -1,6 +1,8 @@
 in vec3 WorldPos;
 in vec2 UV;
 in mat3 TBN;
+in float WaveHeight;
+in vec3 WaveNormal;
 
 out vec4 FragColor;
 
@@ -73,6 +75,14 @@ void main()
     vec3 color = mix(refrColor, reflColor, fresnel(fresnel_amount, normalMapTBN, -I));
 
     // slight water tint
-    color = mix(color, source_color.rgb, fresnel(fresnel_amount, normalMapTBN, -I));
-    FragColor = vec4(color, 0.9);
+    color = mix(color, source_color.rgb, fresnel(fresnel_amount * 0.5, normalMapTBN, -I));
+
+    // water foam
+    float slopeFoam = pow(1.0 - max(normalMapTBN.y, 0.0), 4.0);
+    float peakFoam = smoothstep(0.0, 0.15, WaveHeight);
+    float foam = max(slopeFoam, peakFoam);
+    foam = clamp(foam, 0.0, 1.0);
+    color = mix(color, vec3(0.9, 0.95, 1.0), foam);
+
+    FragColor = vec4(color, 1.0);
 }

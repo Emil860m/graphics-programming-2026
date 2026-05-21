@@ -11,9 +11,12 @@ uniform mat4 WorldMatrix;
 uniform mat4 ViewProjMatrix;
 void main()
 {
-    Height = VertexPosition.y;
-    WorldPos = (WorldMatrix * vec4(VertexPosition.x, 1.0, VertexPosition.z, 1.0)).xyz;
+    vec3 vp = VertexPosition;
+    vp.z += 6;
+    vp.y *= 2;
+    Height = vp.y;
+    WorldPos = (WorldMatrix * vec4(vp.x, 1.0, vp.z, 1.0)).xyz;
     Normal = mat3(WorldMatrix) * VertexNormal;
     UV = VertexUV;
-    gl_Position = ViewProjMatrix * WorldMatrix * vec4(VertexPosition, 1.0);
+    gl_Position = ViewProjMatrix * WorldMatrix * vec4(vp, 1.0);
 }
