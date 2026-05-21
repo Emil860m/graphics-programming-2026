@@ -2,9 +2,6 @@ layout (location = 0) in vec3 VertexPosition;
 layout (location = 1) in vec3 VertexNormal;
 layout(location = 2) in vec2 VertexUV;
 
-out float Height;
-out vec3 WorldPos;
-out vec3 Normal;
 out vec2 UV;
 
 uniform mat4 WorldMatrix;
@@ -14,9 +11,6 @@ void main()
     vec3 vp = VertexPosition;
     vp.z += 6;
     vp.y *= 2;
-    Height = vp.y;
-    WorldPos = (WorldMatrix * vec4(vp.x, 1.0, vp.z, 1.0)).xyz;
-    Normal = mat3(WorldMatrix) * VertexNormal;
     UV = VertexUV;
     gl_Position = ViewProjMatrix * WorldMatrix * vec4(vp, 1.0);
 }
