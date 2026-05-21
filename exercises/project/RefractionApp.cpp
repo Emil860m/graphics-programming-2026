@@ -99,10 +99,9 @@ void RefractionApp::InitializeCamera()
 void RefractionApp::InitializeMaterials() {
     {
         std::vector<const char*> waterVertexShaders;
-        waterVertexShaders.push_back("shaders/tutorial.vert");
+        waterVertexShaders.push_back("shaders/water.vert");
         std::vector<const char*> waterFragmentShaders;
-        waterFragmentShaders.push_back("shaders/utils.glsl");
-        waterFragmentShaders.push_back("shaders/tutorial.frag");
+        waterFragmentShaders.push_back("shaders/water.frag");
         
         m_waterMaterial = InitializeMaterial(waterVertexShaders, waterFragmentShaders, true);
         m_waterMaterial->SetBlendEquation(Material::BlendEquation::Add);
@@ -124,7 +123,8 @@ void RefractionApp::InitializeMaterials() {
         m_waterMaterial->SetUniformValue("movement_strength", 0.5f);
         m_waterMaterial->SetUniformValue("waveHeight", 0.5f);
         m_waterMaterial->SetUniformValue("distortion_strength", 0.1f);
-        m_waterMaterial->SetUniformValue("fresnel_amount", 2.0f);
+        m_waterMaterial->SetUniformValue("fresnel_amount", 1.0f);
+        m_waterMaterial->SetUniformValue("foam_amount", 0.75f); // 0.0 to 1.0
         m_waterMaterial->SetUniformValue("movement_direction", glm::vec2(0.1f, 0.1f));
         m_waterMaterial->SetUniformValue("source_color", glm::vec4(0.38f, 0.65f, 0.65f, 1.0));
         m_waterMaterial->SetDepthTestFunction(Material::TestFunction::LessEqual);
@@ -132,8 +132,8 @@ void RefractionApp::InitializeMaterials() {
     {
         std::vector<const char*> groundVertexShaders;
         std::vector<const char*> groundFragmentShaders;
-        groundVertexShaders.push_back("shaders/simple.vert");
-        groundFragmentShaders.push_back("shaders/simple.frag");
+        groundVertexShaders.push_back("shaders/ground.vert");
+        groundFragmentShaders.push_back("shaders/ground.frag");
 
         m_groundMaterial = InitializeMaterial(groundVertexShaders, groundFragmentShaders, false);
         Texture2DLoader textureLoader(TextureObject::FormatRGBA, TextureObject::InternalFormatRGBA8);

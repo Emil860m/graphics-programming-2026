@@ -22,6 +22,7 @@ uniform vec2 movement_direction;
 uniform vec2 texelSize;
 uniform float distortion_strength;
 uniform float fresnel_amount;
+uniform float foam_amount;
 
 uniform vec3 CameraPosition;
 uniform float Time;
@@ -69,20 +70,19 @@ void main()
     //reflection
     vec3 reflDir = reflect(I, normalMapTBN);
     vec3 reflColor = texture(Skybox, reflDir).rgb;
-    reflColor = reflColor * 0.5;
 
     // mix reflection, refraction and fresnel
     vec3 color = mix(refrColor, reflColor, fresnel(fresnel_amount, normalMapTBN, -I));
 
     // slight water tint
-    color = mix(color, source_color.rgb, fresnel(fresnel_amount * 0.5, normalMapTBN, -I));
+    color = mix(color, source_color.rgb, fresnel(fresnel_amount, normalMapTBN, -I));
 
     // water foam
     float slopeFoam = pow(1.0 - max(normalMapTBN.y, 0.0), 4.0);
     float peakFoam = smoothstep(0.0, 0.15, WaveHeight);
     float foam = max(slopeFoam, peakFoam);
     foam = clamp(foam, 0.0, 1.0);
-    color = mix(color, vec3(0.9, 0.95, 1.0), foam);
+    color = mix(color, vec3(0.9, 0.95, 1.0), foam * foam_amount);
 
     FragColor = vec4(color, 1.0);
 }
