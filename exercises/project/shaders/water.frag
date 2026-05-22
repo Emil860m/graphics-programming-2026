@@ -57,7 +57,7 @@ void main()
     vec3 normalMap = normalize(n1 + n2);
     vec3 normalMapTBN = normalize(TBN * normalMap);
 
-    // Viewspace
+    // View direction
     vec3 I = normalize(WorldPos - CameraPosition);
 
 
@@ -84,5 +84,5 @@ void main()
     foam = clamp(foam, 0.0, 1.0);
     color = mix(color, vec3(0.9, 0.95, 1.0), foam * foam_amount);
 
-    FragColor = vec4(color, 1.0);
+    FragColor = vec4(color, 0.9);
 }

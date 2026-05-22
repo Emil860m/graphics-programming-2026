@@ -124,9 +124,9 @@ void RefractionApp::InitializeMaterials() {
         m_waterMaterial->SetUniformValue("waveHeight", 0.5f);
         m_waterMaterial->SetUniformValue("distortion_strength", 0.1f);
         m_waterMaterial->SetUniformValue("fresnel_amount", 1.0f);
-        m_waterMaterial->SetUniformValue("foam_amount", 0.75f); // 0.0 to 1.0
+        m_waterMaterial->SetUniformValue("foam_amount", 0.5f); // 0.0 to 1.0
         m_waterMaterial->SetUniformValue("movement_direction", glm::vec2(0.1f, 0.1f));
-        m_waterMaterial->SetUniformValue("source_color", glm::vec4(0.38f, 0.65f, 0.65f, 1.0));
+        m_waterMaterial->SetUniformValue("source_color", glm::vec4(0.43f, 0.7f, 0.7f, 1.0));
         m_waterMaterial->SetDepthTestFunction(Material::TestFunction::LessEqual);
     }
     {

@@ -25,9 +25,9 @@ struct Wave
 };
 
 Wave waves[NUM_WAVES] = Wave[](
-    Wave(normalize(vec2(0.2, 1.0)), 0.5, 6.0, 0.08, 0.3),
-    Wave(normalize(vec2(1.0, 0.7)), 0.4, 4.0, 0.04, 0.4),
-    Wave(normalize(vec2(-1.0, 0.3)), 0.3, 2.5, 0.03, 0.5)
+    Wave(normalize(vec2(0.2, 1.0)), 0.5, 9.0, 0.08, 0.3),
+    Wave(normalize(vec2(1.0, 0.7)), 0.4, 6.0, 0.04, 0.4),
+    Wave(normalize(vec2(-1.0, 0.3)), 0.3, 3.75, 0.03, 0.5)
 );
 
 void main()
@@ -42,8 +42,8 @@ void main()
     {
         Wave w = waves[i];
 
-        float k = 2.0 * 3.14159 / w.wavelength;
-        float c = sqrt(9.81 / k) * w.speed;
+        float k = 2.0 * 3.14159 / w.wavelength; // 2pi
+        float c = sqrt(9.81 / k) * w.speed; // gravity
 
         vec2 d = normalize(w.direction);
 

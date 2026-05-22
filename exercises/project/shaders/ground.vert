@@ -9,8 +9,8 @@ uniform mat4 ViewProjMatrix;
 void main()
 {
     vec3 vp = VertexPosition;
-    vp.z += 6;
-    vp.y *= 2;
+    //vp.z += 6;
+    //vp.y *= 2;
     UV = VertexUV;
     gl_Position = ViewProjMatrix * WorldMatrix * vec4(vp, 1.0);
 }
