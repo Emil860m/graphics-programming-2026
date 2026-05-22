@@ -228,13 +228,8 @@ unsigned char* generatePerlinNoise(
             // Convert from [-1,1] to [0,1]
             noise = (noise + 1.0f) * 0.5f;
             float gradient = (float)y / (float)(height - 1); 
+            noise = (noise + gradient) * 0.5f;
             float finalValue = gradient * (1.0f - noiseStrength) + noise * noiseStrength; 
-            //std::cout << noise << "\n";
-            // Clamp
-            // -------------------------------------- // Blend Noise + Gradient // -------------------------------------- 
-            // 0.0 = pure gradient 
-            // 1.0 = pure noise 
-            //float noiseStrength = 1.0f; 
             // Clamp 
             if (finalValue < 0.0f) finalValue = 0.0f; 
             if (finalValue > 1.0f) finalValue = 1.0f; 
