@@ -133,13 +133,47 @@ float* generate_perlin_noise_octave(int height, int width, int gradient_grid_siz
 
 }
 
+float* generate_perlin_noise_octaves(int height, int width, int base_grid_size, int num_octaves, int tile_size, float gradient_strength) {
+    float* data = new float[height * width];
+
+    for (size_t i = 0; i < height * width; i++)
+    {
+        data[i] = 0.0f;
+    }
+    
+
+    for (int i = 0; i < num_octaves; i++)
+    {
+        float frequency = pow(2, i);
+        float amplitude = pow(0.5, i);
+        int grid_size;
+        if (2 > base_grid_size * amplitude) {
+            grid_size = 2;
+        }
+        else {
+            grid_size = base_grid_size * amplitude;
+        }
+        std::cout << grid_size << "\n";
+        float* inc_data = generate_perlin_noise_octave(height, width, grid_size, amplitude, tile_size, gradient_strength);
+
+        for (int i = 0; i < height*width; i++)
+        {
+            data[i] += inc_data[i];
+        }
+        
+    }
+    return data;
+
+}
+
 void save_image(const char* filename)
 {
     Seed = (unsigned)time(nullptr);
+    srand(Seed);
     const int width = 256;
     const int height = 256;
-
-    unsigned char* image = (unsigned char*)generate_perlin_noise_octave(width, height, 5, 1.0f, 6, 0.5f);
+    unsigned char* image = (unsigned char*)generate_perlin_noise_octaves(height, width, 8, 4, 16, 0.5f);
+    //unsigned char* image = (unsigned char*)generate_perlin_noise_octave(width, height, 5, 1.0f, 6, 0.5f);
     int success = stbi_write_png(
         filename,
         width,
@@ -151,7 +185,7 @@ void save_image(const char* filename)
 
     if (success)
     {
-        std::cout << "Saved perlin_octaves.png\n";
+        std::cout << "Saved " << filename << ".png\n";
     }
     else
     {
