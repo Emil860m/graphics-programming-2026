@@ -6,10 +6,19 @@ out vec2 UV;
 
 uniform mat4 WorldMatrix;
 uniform mat4 ViewProjMatrix;
+uniform float offset;
+uniform vec3 CameraPosition;
+uniform float tileIndex;
 void main()
 {
     vec3 vp = VertexPosition;
-    //vp.z += 6;
+    //vp.x += offset;
+    float cameraX = CameraPosition.x;
+    float wrappedOffset =
+        floor(cameraX / offset) * offset;
+
+    vp.x += wrappedOffset + tileIndex * offset;
+    vp.z += 6;
     //vp.y *= 2;
     UV = VertexUV;
     gl_Position = ViewProjMatrix * WorldMatrix * vec4(vp, 1.0);

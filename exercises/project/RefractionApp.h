@@ -52,7 +52,13 @@ private:
 
     // Default material
     std::shared_ptr<Material> m_groundMaterial;
+    std::shared_ptr<Material> m_groundMaterial2;
+    std::shared_ptr<Material> m_groundMaterial3;
     std::shared_ptr<Material> m_waterMaterial;
+    std::shared_ptr<Material> m_waterMaterial2;
+
+    std::shared_ptr<Material> m_waterMaterial3;
     glm::vec2 planeSize;
+    
 
 };

@@ -84,5 +84,5 @@ void main()
     foam = clamp(foam, 0.0, 1.0);
     color = mix(color, vec3(0.9, 0.95, 1.0), foam * foam_amount);
 
-    FragColor = vec4(color, 0.9);
+    FragColor = vec4(color, 1.0);
 }

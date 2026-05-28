@@ -20,6 +20,7 @@
 
 #include <ituGL/scene/ImGuiSceneVisitor.h>
 #include <imgui.h>
+#include <iostream>
 
 #define SPACING 0.01f
 
@@ -110,8 +111,8 @@ void RefractionApp::InitializeMaterials() {
             Material::BlendParam::OneMinusSourceAlpha
         );
         Texture2DLoader textureLoader(TextureObject::FormatRGBA, TextureObject::InternalFormatRGBA8);
-        std::shared_ptr<Texture2DObject> texture1 = textureLoader.LoadShared("noise_maps/perlin_octaves2.png");
-        std::shared_ptr<Texture2DObject> texture2 = textureLoader.LoadShared("noise_maps/perlin_octaves3.png");
+        std::shared_ptr<Texture2DObject> texture1 = textureLoader.LoadShared("noise_maps/combined.png");
+        std::shared_ptr<Texture2DObject> texture2 = textureLoader.LoadShared("noise_maps/combined2.png");
         ShaderProgram::Location nm1 = m_waterMaterial->GetUniformLocation("Normal1");
         ShaderProgram::Location nm2 = m_waterMaterial->GetUniformLocation("Normal2");
         m_waterMaterial->SetUniformValue(nm1, texture1);
@@ -122,12 +123,79 @@ void RefractionApp::InitializeMaterials() {
         m_waterMaterial->SetUniformValue("normalMap2Str", 0.4f);
         m_waterMaterial->SetUniformValue("movement_strength", 0.5f);
         m_waterMaterial->SetUniformValue("waveHeight", 0.5f);
-        m_waterMaterial->SetUniformValue("distortion_strength", 0.1f);
+        m_waterMaterial->SetUniformValue("distortion_strength", 0.5f);
         m_waterMaterial->SetUniformValue("fresnel_amount", 1.0f);
         m_waterMaterial->SetUniformValue("foam_amount", 0.5f); // 0.0 to 1.0
+        m_waterMaterial->SetUniformValue("tileIndex", 0.0f);
         m_waterMaterial->SetUniformValue("movement_direction", glm::vec2(0.1f, 0.1f));
         m_waterMaterial->SetUniformValue("source_color", glm::vec4(0.43f, 0.7f, 0.7f, 1.0));
         m_waterMaterial->SetDepthTestFunction(Material::TestFunction::LessEqual);
+    }
+    {
+        std::vector<const char*> waterVertexShaders;
+        waterVertexShaders.push_back("shaders/water.vert");
+        std::vector<const char*> waterFragmentShaders;
+        waterFragmentShaders.push_back("shaders/water.frag");
+        
+        m_waterMaterial2 = InitializeMaterial(waterVertexShaders, waterFragmentShaders, true);
+        m_waterMaterial2->SetBlendEquation(Material::BlendEquation::Add);
+        m_waterMaterial2->SetBlendParams(
+            Material::BlendParam::SourceAlpha,
+            Material::BlendParam::OneMinusSourceAlpha
+        );
+        Texture2DLoader textureLoader(TextureObject::FormatRGBA, TextureObject::InternalFormatRGBA8);
+        std::shared_ptr<Texture2DObject> texture1 = textureLoader.LoadShared("noise_maps/combined.png");
+        std::shared_ptr<Texture2DObject> texture2 = textureLoader.LoadShared("noise_maps/combined2.png");
+        ShaderProgram::Location nm1 = m_waterMaterial2->GetUniformLocation("Normal1");
+        ShaderProgram::Location nm2 = m_waterMaterial2->GetUniformLocation("Normal2");
+        m_waterMaterial2->SetUniformValue(nm1, texture1);
+        m_waterMaterial2->SetUniformValue(nm2, texture2);
+        m_waterMaterial2->SetUniformValue("texelSize", glm::vec2(1.0f/2048.0f, 1.0f/2048.0f));
+        m_waterMaterial2->SetUniformValue("uv_scale", 0.5f);
+        m_waterMaterial2->SetUniformValue("normalMap1Str", 0.3f);
+        m_waterMaterial2->SetUniformValue("normalMap2Str", 0.4f);
+        m_waterMaterial2->SetUniformValue("movement_strength", 0.5f);
+        m_waterMaterial2->SetUniformValue("waveHeight", 0.5f);
+        m_waterMaterial2->SetUniformValue("distortion_strength", 0.5f);
+        m_waterMaterial2->SetUniformValue("fresnel_amount", 1.0f);
+        m_waterMaterial2->SetUniformValue("foam_amount", 0.5f); // 0.0 to 1.0
+        m_waterMaterial2->SetUniformValue("tileIndex", 1.0f);
+        m_waterMaterial2->SetUniformValue("movement_direction", glm::vec2(0.1f, 0.1f));
+        m_waterMaterial2->SetUniformValue("source_color", glm::vec4(0.43f, 0.7f, 0.7f, 1.0));
+        m_waterMaterial2->SetDepthTestFunction(Material::TestFunction::LessEqual);
+    }
+        {
+        std::vector<const char*> waterVertexShaders;
+        waterVertexShaders.push_back("shaders/water.vert");
+        std::vector<const char*> waterFragmentShaders;
+        waterFragmentShaders.push_back("shaders/water.frag");
+        
+        m_waterMaterial3 = InitializeMaterial(waterVertexShaders, waterFragmentShaders, true);
+        m_waterMaterial3->SetBlendEquation(Material::BlendEquation::Add);
+        m_waterMaterial3->SetBlendParams(
+            Material::BlendParam::SourceAlpha,
+            Material::BlendParam::OneMinusSourceAlpha
+        );
+        Texture2DLoader textureLoader(TextureObject::FormatRGBA, TextureObject::InternalFormatRGBA8);
+        std::shared_ptr<Texture2DObject> texture1 = textureLoader.LoadShared("noise_maps/combined.png");
+        std::shared_ptr<Texture2DObject> texture2 = textureLoader.LoadShared("noise_maps/combined2.png");
+        ShaderProgram::Location nm1 = m_waterMaterial3->GetUniformLocation("Normal1");
+        ShaderProgram::Location nm2 = m_waterMaterial3->GetUniformLocation("Normal2");
+        m_waterMaterial3->SetUniformValue(nm1, texture1);
+        m_waterMaterial3->SetUniformValue(nm2, texture2);
+        m_waterMaterial3->SetUniformValue("texelSize", glm::vec2(1.0f/2048.0f, 1.0f/2048.0f));
+        m_waterMaterial3->SetUniformValue("uv_scale", 0.5f);
+        m_waterMaterial3->SetUniformValue("normalMap1Str", 0.3f);
+        m_waterMaterial3->SetUniformValue("normalMap2Str", 0.4f);
+        m_waterMaterial3->SetUniformValue("movement_strength", 0.5f);
+        m_waterMaterial3->SetUniformValue("waveHeight", 0.5f);
+        m_waterMaterial3->SetUniformValue("distortion_strength", 0.5f);
+        m_waterMaterial3->SetUniformValue("fresnel_amount", 1.0f);
+        m_waterMaterial3->SetUniformValue("foam_amount", 0.5f); // 0.0 to 1.0
+        m_waterMaterial3->SetUniformValue("tileIndex", 2.0f);
+        m_waterMaterial3->SetUniformValue("movement_direction", glm::vec2(0.1f, 0.1f));
+        m_waterMaterial3->SetUniformValue("source_color", glm::vec4(0.43f, 0.7f, 0.7f, 1.0));
+        m_waterMaterial3->SetDepthTestFunction(Material::TestFunction::LessEqual);
     }
     {
         std::vector<const char*> groundVertexShaders;
@@ -139,10 +207,43 @@ void RefractionApp::InitializeMaterials() {
         Texture2DLoader textureLoader(TextureObject::FormatRGBA, TextureObject::InternalFormatRGBA8);
         std::shared_ptr<Texture2DObject> texture = textureLoader.LoadShared("textures/4429.jpg");
         m_waterMaterial->SetUniformValue("groundPlane", texture);
+        m_waterMaterial2->SetUniformValue("groundPlane", texture);
+        m_waterMaterial3->SetUniformValue("groundPlane", texture);
         m_groundMaterial->SetUniformValue("tex", texture);
+        m_groundMaterial->SetUniformValue("tileIndex", 0.0f);
         m_groundMaterial->SetUniformValue("Color", glm::vec3(0.8f, 0.7f, 0.5f));
         m_groundMaterial->SetBlendEquation(Material::BlendEquation::None);
         m_groundMaterial->SetDepthWrite(true);
+    }
+    {
+        std::vector<const char*> groundVertexShaders;
+        std::vector<const char*> groundFragmentShaders;
+        groundVertexShaders.push_back("shaders/ground.vert");
+        groundFragmentShaders.push_back("shaders/ground.frag");
+
+        m_groundMaterial2 = InitializeMaterial(groundVertexShaders, groundFragmentShaders, false);
+        Texture2DLoader textureLoader(TextureObject::FormatRGBA, TextureObject::InternalFormatRGBA8);
+        std::shared_ptr<Texture2DObject> texture = textureLoader.LoadShared("textures/4429.jpg");
+        m_groundMaterial2->SetUniformValue("tex", texture);
+        m_groundMaterial2->SetUniformValue("tileIndex", 1.0f);
+        m_groundMaterial2->SetUniformValue("Color", glm::vec3(0.8f, 0.7f, 0.5f));
+        m_groundMaterial2->SetBlendEquation(Material::BlendEquation::None);
+        m_groundMaterial2->SetDepthWrite(true);
+    }
+        {
+        std::vector<const char*> groundVertexShaders;
+        std::vector<const char*> groundFragmentShaders;
+        groundVertexShaders.push_back("shaders/ground.vert");
+        groundFragmentShaders.push_back("shaders/ground.frag");
+
+        m_groundMaterial3 = InitializeMaterial(groundVertexShaders, groundFragmentShaders, false);
+        Texture2DLoader textureLoader(TextureObject::FormatRGBA, TextureObject::InternalFormatRGBA8);
+        std::shared_ptr<Texture2DObject> texture = textureLoader.LoadShared("textures/4429.jpg");
+        m_groundMaterial3->SetUniformValue("tex", texture);
+        m_groundMaterial3->SetUniformValue("tileIndex", 2.0f);
+        m_groundMaterial3->SetUniformValue("Color", glm::vec3(0.8f, 0.7f, 0.5f));
+        m_groundMaterial3->SetBlendEquation(Material::BlendEquation::None);
+        m_groundMaterial3->SetDepthWrite(true);
     }
 }
 
@@ -199,19 +300,37 @@ void RefractionApp::InitializeModels()
     TextureCubemapObject::Unbind();
 
     // Ground
-    std::shared_ptr<Mesh> groundMesh = CreatePlaneFromImage("noise_maps/perlin_octaves1.png", 1.0f, SPACING);
+    std::shared_ptr<Mesh> groundMesh = CreatePlaneFromImage("noise_maps/a.png", 1.0f, SPACING);
     std::shared_ptr<Model> groundModel = std::make_shared<Model>(groundMesh);
     groundModel->AddMaterial(m_groundMaterial);
     std::shared_ptr<SceneModel> groundNode = std::make_shared<SceneModel>("ground", groundModel);
+    std::shared_ptr<Model> groundModel2 = std::make_shared<Model>(groundMesh);
+    groundModel2->AddMaterial(m_groundMaterial2);
+    std::shared_ptr<SceneModel> groundNode2 = std::make_shared<SceneModel>("ground2", groundModel2);
+    std::shared_ptr<Model> groundModel3 = std::make_shared<Model>(groundMesh);
+    groundModel3->AddMaterial(m_groundMaterial3);
+    std::shared_ptr<SceneModel> groundNode3 = std::make_shared<SceneModel>("ground3", groundModel3);
 
     
     std::shared_ptr<Mesh> waterMesh = CreatePlane(SPACING);
+    
     std::shared_ptr<Model> waterModel = std::make_shared<Model>(waterMesh);
     waterModel->AddMaterial(m_waterMaterial);
     std::shared_ptr<SceneModel> waterNode = std::make_shared<SceneModel>("water", waterModel);
     m_scene.AddSceneNode(waterNode);
-    m_scene.AddSceneNode(groundNode);
     
+    std::shared_ptr<Model> waterModel2 = std::make_shared<Model>(waterMesh);
+    waterModel2->AddMaterial(m_waterMaterial2);
+    std::shared_ptr<SceneModel> waterNode2 = std::make_shared<SceneModel>("water2", waterModel2);
+    m_scene.AddSceneNode(waterNode2);    
+    std::shared_ptr<Model> waterModel3 = std::make_shared<Model>(waterMesh);
+    waterModel3->AddMaterial(m_waterMaterial3);
+    std::shared_ptr<SceneModel> waterNode3 = std::make_shared<SceneModel>("water3", waterModel3);
+    m_scene.AddSceneNode(waterNode3);
+    
+    m_scene.AddSceneNode(groundNode);
+    m_scene.AddSceneNode(groundNode2);
+    m_scene.AddSceneNode(groundNode3);
 
 }
 
@@ -230,7 +349,14 @@ void RefractionApp::InitializeRenderer()
         {
             return dc.GetMaterial().HasBlend();
         }
-    );   
+    );        
+    m_waterMaterial->SetUniformValue("offset", (planeSize[0] * SPACING) - 0.02f);
+    m_waterMaterial2->SetUniformValue("offset", (planeSize[0] * SPACING) - 0.02f);
+    m_waterMaterial3->SetUniformValue("offset", (planeSize[0] * SPACING) - 0.02f);
+    m_groundMaterial->SetUniformValue("offset", (planeSize[0] * SPACING) - 0.02f);
+    m_groundMaterial2->SetUniformValue("offset", (planeSize[0] * SPACING) - 0.02f);
+    m_groundMaterial3->SetUniformValue("offset", (planeSize[0] * SPACING) - 0.02f);
+    
     m_renderer.AddRenderPass(std::make_unique<SkyboxRenderPass>(m_skyboxTexture));
     m_renderer.AddRenderPass(std::make_unique<ForwardRenderPass>(m_opaqueCollection));
     m_renderer.AddRenderPass(std::make_unique<ForwardRenderPass>(m_transparentCollection));

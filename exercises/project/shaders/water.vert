@@ -12,6 +12,10 @@ uniform mat4 WorldMatrix;
 uniform mat4 ViewProjMatrix;
 uniform float Time;
 
+uniform float offset;
+uniform vec3 CameraPosition;
+uniform float tileIndex;
+
 
 const int NUM_WAVES = 3;
 
@@ -34,9 +38,14 @@ void main()
 {
     vec3 pos = VertexPosition;
 
+    float cameraX = CameraPosition.x;
+    float wrappedOffset =
+        floor(cameraX / offset) * offset;
+
+    pos.x += wrappedOffset + tileIndex * offset;
     vec3 tangent = vec3(1.0, 0.0, 0.0);
     vec3 binormal = vec3(0.0, 0.0, 1.0);
-
+    
     // Gerstner Waves
     for(int i = 0; i < NUM_WAVES; ++i)
     {
@@ -71,7 +80,7 @@ void main()
             -d.y * d.y * (q * a * k * sin(f))
         );
     }
-
+    
     vec3 normal = normalize(cross(binormal, tangent));
 
     vec3 T = normalize(mat3(WorldMatrix) * tangent);
